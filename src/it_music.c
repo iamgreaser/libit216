@@ -2728,7 +2728,7 @@ void UpdateNoteData(it_engine *ite)
 		// First clear all old command&value.
 		// Mov     CX, 64                 // Done above
 
-		for(; cx != 64; cx--)
+		for(; cx != 0; cx--)
 		{
 			chn->Flags &= ~(3+32+64+256);
 			chn++;
@@ -2821,7 +2821,7 @@ void UpdateNoteData(it_engine *ite)
 			}
 
 			al = *(data++);
-			uint8_t ah = al;
+			uint8_t ah = *(data++);
 			chn->Cmd  = chn->OCm  = al;
 			chn->CVal = chn->OVal = ah;
 
@@ -3538,6 +3538,7 @@ void UpdateData_NoNewRow(it_engine *ite)
 		if((chn->Flags & 3) == 0) continue;
 		if((chn->Flags & 2) == 0 && (chn->Flags & 4) == 0) continue;
 
+		//printf("%i %04X\n", chn->Flags);
 		CommandTable[chn->Cmd & 31](ite, chn);
 	}
 }
@@ -3598,7 +3599,7 @@ void UpdateEffectData(it_engine *ite)
 		uint8_t oldmsk = chn->Msk;
 		chn->Msk &= 0x88;
 
-		InitCommandTable[chn->Cmd](ite, chn); // Init note
+		InitCommandTable[chn->Cmd & 0x1F](ite, chn); // Init note
 
 		chn->Msk = oldmsk;
 	}
