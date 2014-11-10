@@ -61,7 +61,7 @@ static int drv_oss_DriverPoll(it_engine *ite, uint16_t PlayMode, uint16_t Curren
 	for(i = 0; i < ite->NumChannels; i++)
 	{
 		slave = &ite->slave[i];
-		if((slave->Flags & 1) != 0)
+		if((slave->Flags & 1) != 0 && (slave->Flags & 0x0200) == 0)
 		{
 			// TODO: get the damn thing to behave
 

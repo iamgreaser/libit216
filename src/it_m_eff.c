@@ -1524,7 +1524,7 @@ void CommandEChain(it_engine *ite, it_host *chn, int16_t bx)
 {
 	it_slave *slave = &ite->slave[chn->SCOffst];
 	PitchSlideDown(ite, chn, slave, bx);
-	slave->Frequency = slave->Frequency_Set;
+	slave->Frequency_Set = slave->Frequency;
 }
 
 void CommandF(it_engine *ite, it_host *chn)
@@ -1536,7 +1536,7 @@ void CommandFChain(it_engine *ite, it_host *chn, int16_t bx)
 {
 	it_slave *slave = &ite->slave[chn->SCOffst];
 	PitchSlideUp(ite, chn, slave, bx);
-	slave->Frequency = slave->Frequency_Set;
+	slave->Frequency_Set = slave->Frequency;
 }
 
 void CommandG(it_engine *ite, it_host *chn)
@@ -1622,13 +1622,13 @@ void CommandH(it_engine *ite, it_host *chn)
 		switch(chn->VWF)
 		{
 			case 0:
-				al = FineSineData[slave->ViP];
+				al = FineSineData[chn->VPo];
 				break;
 			case 1:
-				al = FineRampDownData[slave->ViP];
+				al = FineRampDownData[chn->VPo];
 				break;
 			case 2:
-				al = FineSquareWave[slave->ViP];
+				al = FineSquareWave[chn->VPo];
 				break;
 			default:
 				printf("PANIC: out of range vibrato types not emulated!\n");
@@ -1664,7 +1664,7 @@ void CommandH5(it_engine *ite, it_host *chn, it_slave *slave, int8_t al)
 	//MovZX   BX, AH
 
 	// AH = EEx/FEx command value
-	if((ax & 0x80) != 0)
+	if(ax < 0)
 		PitchSlideDown(ite, chn, slave, -ax);
 	else
 		PitchSlideUp(ite, chn, slave, ax);
