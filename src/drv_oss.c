@@ -82,6 +82,7 @@ static int drv_oss_DriverPoll(it_engine *ite, uint16_t PlayMode, uint16_t Curren
 			// TODO: fix bugs in actual thing
 			//printf("%i %i %i %i\n", slave->Vol, slave->CVl, slave->SVl, ite->GlobalVolume);
 			vol *= ite->hdr.MV;
+			vol >>= 8;
 
 			nfreq = (((int64_t)nfreq) << (int64_t)16) / (int64_t)freq;
 
@@ -145,7 +146,7 @@ static int drv_oss_DriverPoll(it_engine *ite, uint16_t PlayMode, uint16_t Curren
 						break;
 					}
 
-					mixbuf[j] -= (vol*(int32_t)data[offs])>>(14+8);
+					mixbuf[j] -= (vol*(int32_t)data[offs])>>14;
 				}
 
 			} else {
@@ -195,7 +196,7 @@ static int drv_oss_DriverPoll(it_engine *ite, uint16_t PlayMode, uint16_t Curren
 						break;
 					}
 
-					mixbuf[j] -= (vol*(int32_t)data[offs])>>14;
+					mixbuf[j] -= (vol*(int32_t)data[offs])>>(14-8);
 				}
 			}
 

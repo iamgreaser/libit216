@@ -98,11 +98,12 @@ int D_LoadSampleData(it_engine *ite, FILE *fp, uint16_t ax)
 	ch = 0; // Start with page 0
 	uint16_t si = 0;
 
+	uint8_t *srcdata = data;
 	for(; edi >= 0; edi -= 32768)
 	{
 		uint32_t ecx;
 		int is8bit;
-		uint8_t *srcdata = Music_GetSampleLocation(ite, ax, &ecx, &is8bit);
+		//uint8_t *srcdata = Music_GetSampleLocation(ite, ax, &ecx, &is8bit);
 
 		uint32_t buflen = 32768;
 
@@ -143,7 +144,8 @@ int D_LoadSampleData(it_engine *ite, FILE *fp, uint16_t ax)
 		LoadCompressedSample1:
 		*/
 
-		buflen = fread(data, 1, buflen, fp);
+		uint8_t *newsrcdata = srcdata + buflen;
+		buflen = fread(srcdata, 1, buflen, fp);
 
 		// Now to decompress samples, if required.
 		/*
@@ -225,7 +227,7 @@ int D_LoadSampleData(it_engine *ite, FILE *fp, uint16_t ax)
 			if((bp & 5) == 5) // 16 bit and BSwap?
 			{
 				uint16_t ctr = buflen;
-				uint8_t *dfol = data;
+				uint8_t *dfol = srcdata;
 
 				while(ctr-- != 0)
 				{
@@ -244,7 +246,7 @@ int D_LoadSampleData(it_engine *ite, FILE *fp, uint16_t ax)
 				{
 					// 16 bit delta
 					uint16_t ctr = buflen;
-					uint16_t *dfol = (uint16_t *)data;
+					uint16_t *dfol = (uint16_t *)srcdata;
 
 					while(ctr-- != 0)
 					{
@@ -255,7 +257,7 @@ int D_LoadSampleData(it_engine *ite, FILE *fp, uint16_t ax)
 				} else {
 					// 8 bit delta
 					uint16_t ctr = buflen;
-					uint8_t *dfol = data;
+					uint8_t *dfol = srcdata;
 
 					if((bp & 1) != 0)
 						ctr *= 2;
@@ -274,14 +276,14 @@ int D_LoadSampleData(it_engine *ite, FILE *fp, uint16_t ax)
 				{
 					// 8 bit
 					uint16_t ctr = buflen;
-					uint8_t *dfol = data;
+					uint8_t *dfol = srcdata;
 
 					while(ctr-- != 0)
 						*(dfol++) ^= 0x80;
 				} else {
 					// 16 bit..
 					uint16_t ctr = buflen;
-					uint16_t *dfol = (uint16_t *)data;
+					uint16_t *dfol = (uint16_t *)srcdata;
 
 					while(ctr-- != 0)
 						*(dfol++) ^= 0x8000;
@@ -343,6 +345,7 @@ int D_LoadSampleData(it_engine *ite, FILE *fp, uint16_t ax)
 			*/
 		}
 
+		srcdata = newsrcdata;
 		ch += 2;
 
 	//D_LoadSampleDataNextChain:
