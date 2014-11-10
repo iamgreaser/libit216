@@ -109,7 +109,7 @@ static int drv_oss_DriverPoll(it_engine *ite, uint16_t PlayMode, uint16_t Curren
 
 					if(offs < 0)
 					{
-						if(slave->LpM != 24)
+						if((slave->LpM & 24) != 24)
 						{
 							slave->Flags |= 0x0200;
 							slave->LpD = 0;
@@ -123,13 +123,13 @@ static int drv_oss_DriverPoll(it_engine *ite, uint16_t PlayMode, uint16_t Curren
 
 					if(offs >= lpend)
 					{
-						if(slave->LpM == 0)
+						if((slave->LpM & 8) == 0)
 						{
 							slave->Flags |= 0x0200;
 							break;
 						}
 
-						if(slave->LpM == 24)
+						if((slave->LpM & 24) == 24)
 						{
 							offs = lpend-1;
 							if(nfreq > 0) nfreq = -nfreq;

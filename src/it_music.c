@@ -1783,38 +1783,29 @@ void GetLoopInformation(it_engine *ite, it_slave *slave)
 	int32_t ecx;
 	int32_t edx;
 
-	if((smp->Flg & 0x30) != 0)
+	// TODO: fix this crap (there's a lot of guesswork here!)
+	if((smp->Flg & ((slave->Flags & 4) == 0 ? 0x30 : 0x10)) == 0)
 	{
+		ecx = 0;
+		edx = smp->Length;
+		ah = 0;
+	} else {
 		ecx = smp->Loop_Begin;
 		edx = smp->Loop_End;
 		ah = smp->Flg;
 
-		if((smp->Flg & 0x20) == 0 || (slave->Flags & 4) == 0)
+		if((smp->Flg & 0x20) != 0 && (slave->Flags & 0x4) == 0) // SusLoop?
 		{
-			if((smp->Flg & 0x10) == 0)
-			{
-				ecx = 0;
-				edx = smp->Length;
-				ah = 0;
-			}
-		} else  {
-			if((smp->Flg & 0x20) != 0) // SusLoop?
-			{
-				ecx = smp->SusLoop_Begin;
-				ecx = smp->SusLoop_End;
-				ah >>= 1;
-			}
-
-			if((ah & 0x40) == 0) {
-				ah = 8;
-			} else {
-				ah = 24;
-			}
+			ecx = smp->SusLoop_Begin;
+			edx = smp->SusLoop_End;
+			ah >>= 1;
 		}
-	} else {
-		ecx = 0;
-		edx = smp->Length;
-		ah = 0;
+
+		if((ah & 0x40) == 0) {
+			ah = 8;
+		} else {
+			ah = 24;
+		}
 	}
 
 	if(slave->LpM == ah)
