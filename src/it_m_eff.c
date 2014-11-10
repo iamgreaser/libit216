@@ -320,7 +320,7 @@ void InitNoCommand(it_engine *ite, it_host *chn) // DS:DI points to CIT area.
 		slave->Vol = slave->VS = chn->VSe;
 		it_sample *smp = &ite->smp[slave->SmpOffs];
 
-		if((ite->hdr.Flags & 4) == 0 && (smp->DfP & 0x80) == 0)
+		if((ite->hdr.Flags & 4) == 0 && (smp->DfP & 0x80) != 0)
 			slave->PS = slave->Pan = chn->CP = smp->DfP & 0x7F;
 
 		uint32_t eax = smp->C5Speed;

@@ -2988,7 +2988,7 @@ void UpdateSamples(it_engine *ite)
 				// 0->64 (Separation) => AX = -2048->+2048
 				// ie. AH = -8->+8
 
-				ax >>= 6;
+				ax >>= 7;
 				// AL = -32->+32
 
 				if(ite->d.ReverseChannels != 0)

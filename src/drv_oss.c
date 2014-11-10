@@ -9,7 +9,7 @@ static int is_initialised = 0;
 static int tempo = 125;
 static int ossfmt = AFMT_S16_LE;
 static int freq = 44100;
-static int stereo = 0;
+static int stereo = 1;
 static int tper = 882;
 static int dsp = -1;
 static int32_t mixbuf[44100*2];
@@ -23,6 +23,55 @@ static const char *drv_oss_DriverDetectCard(it_engine *ite, const char *dname, u
 static const char *drv_oss_DriverInitSound(it_engine *ite)
 {
 	return NULL;
+}
+
+static inline int update_offs(it_slave *slave, int32_t *offs, int32_t *oferr, int32_t *nfreq, int32_t lpbeg, int32_t lpend)
+{
+	*oferr += *nfreq;
+	*offs += *oferr>>16;
+	*oferr &= 0xFFFF;
+
+	if(*offs < 0)
+	{
+		if((slave->LpM & 24) != 24)
+		{
+			slave->Flags |= 0x0200;
+			slave->LpD = 0;
+			return 1;
+		}
+
+		*offs = 0;
+		if(*nfreq < 0) *nfreq = -*nfreq;
+		slave->LpD = 0;
+	}
+
+	if(*offs >= lpend)
+	{
+		if((slave->LpM & 8) == 0)
+		{
+			slave->Flags |= 0x0200;
+			return 1;
+		}
+
+		if((slave->LpM & 24) == 24)
+		{
+			*offs = lpend-1;
+			if(*nfreq > 0) *nfreq = -*nfreq;
+			slave->LpD = 1;
+
+		} else {
+			*offs = lpbeg;
+		}
+	}
+
+	if(*offs < 0 || *offs >= lpend)
+	{
+		slave->Flags |= 0x0200;
+		return 1;
+	}
+
+	return 0;
+
 }
 
 static int drv_oss_DriverPoll(it_engine *ite, uint16_t PlayMode, uint16_t CurrentPattern)
@@ -50,7 +99,6 @@ static int drv_oss_DriverPoll(it_engine *ite, uint16_t PlayMode, uint16_t Curren
 		assert(ossfmt == AFMT_S16_LE);
 		ioctl(dsp, SNDCTL_DSP_SPEED, &freq);
 		ioctl(dsp, SNDCTL_DSP_STEREO, &stereo);
-		assert(stereo == 0);
 		printf("OSS opened: fmt=%i, freq=%i, chns=%i\n", ossfmt, freq,
 			(stereo ? 2 : 1));
 	}
@@ -74,15 +122,23 @@ static int drv_oss_DriverPoll(it_engine *ite, uint16_t PlayMode, uint16_t Curren
 			int32_t nfreq = (int32_t)slave->Frequency;
 
 			// TODO: stereo
-			int32_t lvol = ((uint16_t)slave->FV)<<8;
-			int32_t rvol = slave->_16bVol;
-			int32_t vol = rvol;
-			//vol = (vol * slave->CVl) >> 6; // TODO: confirm this
+			int32_t vol = slave->_16bVol;
+			vol *= ite->hdr.MV;
+			vol >>= 8;
+
+			int32_t lvol = vol;
+			int32_t rvol = vol;
+
+			printf("pan %i\n", slave->FPP);
+			if(slave->FPP == 100)
+				rvol = -rvol;
+			else if(slave->FPP < 32)
+				rvol = (rvol * slave->FPP) >> 5;
+			else
+				lvol = (lvol * (64 - slave->FPP)) >> 5;
 
 			// TODO: fix bugs in actual thing
 			//printf("%i %i %i %i\n", slave->Vol, slave->CVl, slave->SVl, ite->GlobalVolume);
-			vol *= ite->hdr.MV;
-			vol >>= 8;
 
 			nfreq = (((int64_t)nfreq) << (int64_t)16) / (int64_t)freq;
 
@@ -98,53 +154,36 @@ static int drv_oss_DriverPoll(it_engine *ite, uint16_t PlayMode, uint16_t Curren
 			{
 				slave->Flags |= 0x0200;
 
-			} else if(slave->Bit != 0) {
+			} else if(stereo != 0 && slave->Bit != 0) {
+				int16_t *data = (int16_t *)ite->SamplePointer[slave->Smp];
+
+				for(j = 0; j < tper*2; j+=2)
+				{
+					if(update_offs(slave, &offs, &oferr, &nfreq, lpbeg, lpend) != 0)
+						break;
+
+					mixbuf[j+0] -= (lvol*(int32_t)data[offs])>>14;
+					mixbuf[j+1] -= (rvol*(int32_t)data[offs])>>14;
+				}
+
+			} else if(stereo != 0 && slave->Bit == 0) {
+
+				int8_t *data = (int8_t *)ite->SamplePointer[slave->Smp];
+				for(j = 0; j < tper*2; j+=2)
+				{
+					if(update_offs(slave, &offs, &oferr, &nfreq, lpbeg, lpend) != 0)
+						break;
+
+					mixbuf[j+0] -= (lvol*(int32_t)data[offs])>>(14-8);
+					mixbuf[j+1] -= (rvol*(int32_t)data[offs])>>(14-8);
+				}
+			} else if(stereo == 0 && slave->Bit != 0) {
 				int16_t *data = (int16_t *)ite->SamplePointer[slave->Smp];
 
 				for(j = 0; j < tper; j++)
 				{
-					oferr += nfreq;
-					offs += oferr>>16;
-					oferr &= 0xFFFF;
-
-					if(offs < 0)
-					{
-						if((slave->LpM & 24) != 24)
-						{
-							slave->Flags |= 0x0200;
-							slave->LpD = 0;
-							break;
-						}
-
-						offs = 0;
-						if(nfreq < 0) nfreq = -nfreq;
-						slave->LpD = 0;
-					}
-
-					if(offs >= lpend)
-					{
-						if((slave->LpM & 8) == 0)
-						{
-							slave->Flags |= 0x0200;
-							break;
-						}
-
-						if((slave->LpM & 24) == 24)
-						{
-							offs = lpend-1;
-							if(nfreq > 0) nfreq = -nfreq;
-							slave->LpD = 1;
-
-						} else {
-							offs = lpbeg;
-						}
-					}
-
-					if(offs < 0 || offs >= lpend)
-					{
-						slave->Flags |= 0x0200;
+					if(update_offs(slave, &offs, &oferr, &nfreq, lpbeg, lpend) != 0)
 						break;
-					}
 
 					mixbuf[j] -= (vol*(int32_t)data[offs])>>14;
 				}
@@ -153,48 +192,8 @@ static int drv_oss_DriverPoll(it_engine *ite, uint16_t PlayMode, uint16_t Curren
 				int8_t *data = (int8_t *)ite->SamplePointer[slave->Smp];
 				for(j = 0; j < tper; j++)
 				{
-					oferr += nfreq;
-					offs += oferr>>16;
-					oferr &= 0xFFFF;
-
-					if(offs < 0)
-					{
-						if(slave->LpM != 24)
-						{
-							slave->Flags |= 0x0200;
-							slave->LpD = 0;
-							break;
-						}
-
-						offs = 0;
-						if(nfreq < 0) nfreq = -nfreq;
-						slave->LpD = 0;
-					}
-
-					if(offs >= lpend)
-					{
-						if(slave->LpM == 0)
-						{
-							slave->Flags |= 0x0200;
-							break;
-						}
-
-						if(slave->LpM == 24)
-						{
-							offs = lpend-1;
-							if(nfreq > 0) nfreq = -nfreq;
-							slave->LpD = 1;
-
-						} else {
-							offs = lpbeg;
-						}
-					}
-
-					if(offs < 0 || offs >= lpend)
-					{
-						slave->Flags |= 0x0200;
+					if(update_offs(slave, &offs, &oferr, &nfreq, lpbeg, lpend) != 0)
 						break;
-					}
 
 					mixbuf[j] -= (vol*(int32_t)data[offs])>>(14-8);
 				}
@@ -212,7 +211,7 @@ static int drv_oss_DriverPoll(it_engine *ite, uint16_t PlayMode, uint16_t Curren
 	}
 	//printf("\n");
 
-	for(i = 0; i < tper; i++)
+	for(i = 0; i < tper*(stereo != 0 ? 2 : 1); i++)
 	{
 		int32_t v = mixbuf[i];
 
@@ -222,7 +221,7 @@ static int drv_oss_DriverPoll(it_engine *ite, uint16_t PlayMode, uint16_t Curren
 		outbuf[i] = v;
 	}
 
-	write(dsp, outbuf, tper*2);
+	write(dsp, outbuf, tper*2*(stereo != 0 ? 2 : 1));
 	//usleep(tsleep);
 	return 0;
 }
