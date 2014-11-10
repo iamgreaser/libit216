@@ -129,7 +129,7 @@ static int drv_oss_DriverPoll(it_engine *ite, uint16_t PlayMode, uint16_t Curren
 			int32_t lvol = vol;
 			int32_t rvol = vol;
 
-			printf("pan %i\n", slave->FPP);
+			//printf("pan %i\n", slave->FPP);
 			if(slave->FPP == 100)
 				rvol = -rvol;
 			else if(slave->FPP < 32)
