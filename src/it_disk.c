@@ -73,7 +73,6 @@ int D_LoadSampleData(it_engine *ite, FILE *fp, uint16_t ax)
 		edx *= 2;
 	}
 
-	printf("%i %i\n", edx, smp->Length);
 	uint8_t *data = Music_AllocateSample(ite, ax, edx);
 	ax++;
 

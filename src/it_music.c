@@ -2212,10 +2212,12 @@ uint8_t *Music_AllocateSample(it_engine *ite, uint16_t ax, size_t edx)
 	// EDX = length
 	// Returns ES:DI, ES = 0 if not.
 
+	it_sample *smp = &ite->smp[ax];
+	int real_len = smp->Length;
+
 	Music_ReleaseSample(ite, ax, 2);
 	edx += 8; // Extra 8 bytes allocated..
 
-	it_sample *smp = &ite->smp[ax];
 	if(edx < 1048576)
 	{
 		smp->Flg |= 1;
@@ -2228,7 +2230,7 @@ uint8_t *Music_AllocateSample(it_engine *ite, uint16_t ax, size_t edx)
 		}
 
 		// XXX: not sure where this actually goes --GM
-		smp->Length = edx;
+		smp->Length = real_len;
 
 		ite->SamplePointer[ax] = malloc(edx);
 		return ite->SamplePointer[ax];
