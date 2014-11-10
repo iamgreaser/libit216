@@ -244,7 +244,7 @@ void VolumeCommandG(it_engine *ite, it_host *chn)
 		//       frequency
 		int32_t eaxs = slave->Frequency;
 
-		if((slave->Flags & 0x0200) != 0 || eaxs < chn->Porta_Frequency)
+		if((slave->Flags & 0x0200) != 0 || eaxs > chn->Porta_Frequency)
 		{
 			slave->Flags &= ~0x0200;
 			chn->Flags |= 0x0004; // Turn on.
@@ -765,7 +765,7 @@ void InitCommandG11(it_engine *ite, it_host *chn)
 				if((chn->Flags & 0x100) == 0)
 					chn->Flags |= 1; // Update effect if necess.
 
-			} else if(chn->Porta_Frequency > slave->Frequency_Set) {
+			} else if(chn->Porta_Frequency < slave->Frequency_Set) {
 				// slide down.
 				chn->_42 = 0 | (chn->_42 & 0xFF00);
 
@@ -780,7 +780,7 @@ void InitCommandG11(it_engine *ite, it_host *chn)
 	}
 
 	// Don't call volume effects if it has a Gxx!
-	if((chn->Flags & 0x100) == 0)
+	if((chn->Flags & 0x100) == 0) // comment this out and you'll get a stack overflow on a Gx VE --GM
 		InitVolumeEffect(ite, chn);
 }
 

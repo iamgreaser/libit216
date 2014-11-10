@@ -2750,6 +2750,7 @@ void UpdateNoteData(it_engine *ite)
 			// else... go through decoding.
 
 			uint8_t dl = al;
+			assert((al & 0x7F) != 0);
 			al = (al & 0x7F) - 1;
 			chn = &ite->chn[al];
 
@@ -2770,8 +2771,8 @@ void UpdateNoteData(it_engine *ite)
 			uint8_t ah;
 			if((dh & 8) != 0)
 			{
-				al = chn->Cmd = *(data++);
-				ah = chn->CVal = *(data++);
+				al = chn->OCm = *(data++);
+				ah = chn->OVal = *(data++);
 			} else if((dh & 0x80) != 0) {
 				al = chn->OCm;
 				ah = chn->OVal;
@@ -2779,9 +2780,8 @@ void UpdateNoteData(it_engine *ite)
 				al = ah = 0;
 			}
 
-			// TODO: verify
-			chn->OCm  = chn->Cmd  = al;
-			chn->OVal = chn->CVal = ah;
+			chn->Cmd  = al;
+			chn->CVal = ah;
 			PreInitCommand(ite, chn);
 		}
 
@@ -3501,12 +3501,13 @@ void UpdateData_PlayMode0(it_engine *ite)
 
 		chn->CUC--; // Handle counter
 
-		chn->Flags &= ~0x303; // Turn off mode.
+		if(chn->CUC != 0xFF)
+			chn->Flags &= ~0x303; // Turn off mode.
 
 		// Mov     AX, [DI]
 
 		// Channel on? / Don't update effect?
-		if((chn->Flags & 4) != 0 && (chn->Flags & 1) != 0)
+		if((chn->Flags & 4) != 0 && (chn->Flags & 0x100) != 0)
 			VolumeEffectTable[chn->VCm & 7](ite, chn);
 
 		if((chn->Flags & 2) != 0 // Update effect regardless..
@@ -3531,7 +3532,7 @@ void UpdateData_NoNewRow(it_engine *ite)
 
 	for(chn = &ite->chn[0], cx = 64; cx != 0; cx--, chn++)
 	{
-		if((chn->Flags & 4) != 0 && (chn->Flags & 1) != 0)
+		if((chn->Flags & 4) != 0 && (chn->Flags & 0x100) != 0)
 			VolumeEffectTable[chn->VCm & 7](ite, chn);
 
 		if((chn->Flags & 3) == 0) continue;
