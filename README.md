@@ -8,7 +8,7 @@ to build player:
 
 to build editor:
 
-    cc -o itedit src/sdriver/*.c src/player/*.c src/ui/*.c -I src/include/ -lm
+    cc -o itedit -DEDITOR src/sdriver/*.c src/player/*.c src/ui/*.c -I src/include/ -lm
 
 to play delicious music:
 

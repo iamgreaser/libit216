@@ -4419,7 +4419,7 @@ int Music_SoundCardLoadSample(it_engine *ite, uint16_t sidx)
 
 	if(ite->d.DriverLoadSample(ite, sidx) == -1)
 	{
-		M_Object1List(ite, O1_OutOfSoundCardMemoryList, 2);
+		M_Object1List(ite, &O1_OutOfSoundCardMemoryList, 2);
 		return -1;
 	}
 
@@ -4643,7 +4643,7 @@ Music_TimeSong1:
 
 	S_RestoreScreen(ite);
 
-	M_Object1List(ite, O1_ShowTime, 0xFFFF);
+	M_Object1List(ite, &O1_ShowTime, -1);
 
 	return 1;
 }

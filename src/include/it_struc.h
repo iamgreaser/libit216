@@ -36,6 +36,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "switch.h"
 #include "network.h"
+#include "it_obj.h"
 
 #define Trace(s) puts(s)
 
@@ -413,6 +414,19 @@ struct it_engine_s
 	it_drvdata d;
 };
 
+// it_obj1.c
+#ifdef EDITOR
+void M_Object1List(it_engine *ite, void *di, int cx);
+extern it_objlist_6 O1_AutoDetectList;
+extern it_objlist_2 O1_OutOfSoundCardMemoryList;
+extern it_objlist_2 O1_ShowTime;
+#else
+#define M_Object1List(ite, list, typ)
+static void *O1_AutoDetectList;
+static void *O1_OutOfSoundCardMemoryList;
+static void *O1_ShowTime;
+#endif
+
 // it_music.c
 it_engine *ITEngineNew();
 void RecalculateAllVolumes(it_engine *ite);
@@ -448,6 +462,7 @@ void Music_UnloadDriver(it_engine *ite);
 void Music_ClearDriverTables(it_engine *ite);
 int Music_LoadDriver(it_engine *ite, const char *fname);
 const char *Music_AutoDetectSoundCard(it_engine *ite);
+void Music_ShowAutoDetectSoundCard(it_engine *ite);
 void Update(it_engine *ite, uint16_t *rcx, it_slave **si, uint16_t *ax);
 void UpdateSamples(it_engine *ite);
 void UpdateInstruments(it_engine *ite);
@@ -468,6 +483,7 @@ void Music_InitStereo(it_engine *ite);
 uint16_t Music_SoundCardLoadAllSamples(it_engine *ite);
 void Music_InitMixTable(it_engine *ite);
 uint16_t Music_GetTempo(it_engine *ite);
+void Music_ShowTime(it_engine *ite);
 void Music_ToggleOrderUpdate(it_engine *ite);
 uint16_t Music_ToggleSolo(it_engine *ite, const char *msg, uint8_t *v, uint16_t bp);
 
@@ -534,8 +550,6 @@ void VolumeCommandG(it_engine *ite, it_host *chn);
 int D_LoadIT(it_engine *ite, const char *fname);
 
 // unsorted
-extern void *O1_OutOfSoundCardMemoryList;
-extern void *O1_ShowTime;
 
 // these can be filled in later, they're really simple and afaik purely for the editor
 // - look in IT_I.ASM for the code --GM
@@ -552,7 +566,6 @@ extern void *O1_ShowTime;
 #define S_DrawSmallBox(ite)
 #define S_GetDestination(ite)
 
-#define M_Object1List(ite, list, typ)
 #define SetInfoLine(ite, str) printf("%s\n", (str));
 
 #define D_GotoStartingDirectory(ite)
