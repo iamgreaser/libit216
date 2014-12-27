@@ -58,6 +58,11 @@ static const char *drv_oss_DriverInitSound(it_engine *ite)
 	return NULL;
 }
 
+int drv_oss_DriverUninitSound(it_engine *ite)
+{
+	return 0;
+}
+
 static inline void kill_channel(it_engine *ite, it_slave *slave)
 {
 	//slave->Flags &= 0x788D;
@@ -315,6 +320,8 @@ it_drvdata *drv_oss_init(it_engine *ite)
 
 	drv.DriverDetectCard = drv_oss_DriverDetectCard;
 	drv.DriverInitSound = drv_oss_DriverInitSound;
+
+	drv.DriverUninitSound = drv_oss_DriverUninitSound;
 
 	drv.DriverPoll = drv_oss_DriverPoll;
 	drv.DriverSetTempo = drv_oss_DriverSetTempo;
