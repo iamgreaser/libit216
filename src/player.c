@@ -1,3 +1,10 @@
+/*
+This part is public domain and is by GreaseMonkey.
+Of course, IT itself is BSD-licensed,
+and this code is kinda useless without it,
+but hey, here's a simple use case.
+*/
+
 #include <unistd.h>
 #include "it_struc.h"
 

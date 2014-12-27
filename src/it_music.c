@@ -1,3 +1,31 @@
+/*
+Copyright (C) 2014, Jeffrey Lim. All Rights Reserved.
+
+Redistribution and use in source and binary forms, with or without 
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, 
+   this list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice, 
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+3. The name of the author may not be used to endorse or promote products
+   derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, 
+INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND 
+FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR 
+BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
+POSSIBILITY OF SUCH DAMAGE.
+*/
+
 #include "it_struc.h"
 
 // temporary shit to make this work --GM
@@ -557,9 +585,10 @@ void InitPlayInstrument(it_engine *ite, it_host *chn, it_slave *slave, int bx) /
 		slave->MPr = chn->MPr;
 		slave->FCut = (ins->MIDIBnk & 0xFF);
 		slave->FRes = (ins->MIDIBnk >> 8);
-		slave->LpD = chn->Nte;
+		slave->LpD = chn->Nte; // For MIDI, LpD = Pattern note
 	}
 
+	slave->CVl = chn->CV;
 	uint8_t dl = chn->CP;
 
 	if((ins->DfP & 0x80) == 0)
@@ -1172,8 +1201,6 @@ it_slave *AllocateChannel(it_engine *ite, it_host *chn, uint8_t *ch)
 
 	it_instrument *ins = &ite->ins[chn->Ins-1];
 
-	// need to focus on other things for now
-	// will mess with this once things are working --GM
 	if((*ch & 0x04) == 0) // if((chn->Flags & 0x04) == 0)
 		goto AllocateChannel8;
 
@@ -1184,6 +1211,8 @@ it_slave *AllocateChannel(it_engine *ite, it_host *chn, uint8_t *ch)
 
 	if(slave->NNA == 0)
 		goto AllocateChannel8; // Notecut.
+	
+	printf("FUCK\n"); // Not properly handled
 
 	// Disown channel
 	slave->HCN |= 0x80;
@@ -1728,28 +1757,25 @@ AllocateChannelInstrument:
 	}
 
 	I_TagSample(ite, chn->Smp-1);
+	slave->Smp = chn->Smp-1;
 
 	// Sample memory offset.
 	slave->SmpOffs = chn->Smp-1;
-
 	it_sample *smp = &ite->smp[slave->SmpOffs];
 
-	if(smp->Length == 0)
-		goto AllocateChannelInstrument2; // No sample!
+	if(smp->Length == 0 || (smp->Flg & 1) == 0)
+	{
+		// No sample!
+		slave->Flags = 0x200;
+		*ch &= ~4;
+		return NULL;
+	}
 
-	if((smp->Flg & 1) == 0)
-		goto AllocateChannelInstrument2; // No sample!
-
-	slave->Bit = smp->Flg & 2;
-
+	slave->Bit = (smp->Flg & 2);
 	slave->SVl = (smp->GvL * (uint16_t)slave->SVl) >> 6; // SI = 0->128
+	//printf("INS VOL %i SMP %i %i\n", slave->SVl, slave->Smp, chn->Smp);
 
 	return slave;
-
-AllocateChannelInstrument2:
-	slave->Flags = 0x200;
-	*ch &= ~4;
-	return NULL;
 }
 
 uint16_t Random(it_engine *ite)
@@ -2664,6 +2690,8 @@ void PreInitCommand(it_engine *ite, it_host *chn)
 			{
 				chn->Nt2 = ins->NoteSamp[chn->Nte][0];
 				chn->Smp = ins->NoteSamp[chn->Nte][1];
+				// This part is fine.
+				//printf("XLAT %i -> %i %i\n", chn->Nte, chn->Nt2, chn->Smp);
 			} else {
 
 				if(ins->MCh == 17)
@@ -3412,6 +3440,7 @@ void UpdateInstruments5(it_engine *ite, it_slave *slave)
 
 		eax >>= 7;
 
+		//printf("VOL %04X %02X\n", slave->_16bVol, slave->FV);
 		slave->FV = eax>>8;
 		slave->_16bVol = eax;
 	}

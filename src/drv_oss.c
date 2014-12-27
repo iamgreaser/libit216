@@ -1,3 +1,7 @@
+/*
+This driver is public domain and is by GreaseMonkey.
+*/
+
 #include "it_struc.h"
 
 #include <unistd.h>
@@ -263,6 +267,7 @@ it_drvdata *drv_oss_init(it_engine *ite)
 	drv.DriverMaxChannels = 128;
 	drv.StopEndOfPlaySection = 0;
 	drv.DefaultChannels = 128;
+	//drv.DefaultChannels = 10;
 	drv.DriverFlags = 0; // no midi out, no hiqual (at least for now)
 
 	drv.DriverDetectCard = drv_oss_DriverDetectCard;

@@ -1,6 +1,6 @@
 this is a port of this thing to C: http://bitbucket.org/jthlim/impulsetracker
 
-licence is pending as per the source repo, expected to be somewhere between BSD and GPL
+licence now exists, check LICENCE.TXT
 
 to build:
 
