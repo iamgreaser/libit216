@@ -1212,7 +1212,8 @@ it_slave *AllocateChannel(it_engine *ite, it_host *chn, uint8_t *ch)
 	if(slave->NNA == 0)
 		goto AllocateChannel8; // Notecut.
 	
-	printf("FUCK\n"); // Not properly handled
+	printf("FUCK\n"); // Mignt not be properly handled
+	//goto AllocateChannel8; // TODO: confirm NNAs!
 
 	// Disown channel
 	slave->HCN |= 0x80;
@@ -1273,6 +1274,7 @@ AllocateChannel20Samples:
 
 	uint8_t al = ins->DCT;
 	slave->Flags = 0x200;
+	printf("DCT %i\n", al);
 	if(al == 0)
 		goto AllocateChannelInstrument;
 
@@ -1290,6 +1292,8 @@ AllocateChannel8:
 	al = ins->DCT;
 	if(al == 0)
 		goto AllocateChannel4; // Duplicate check off.
+	
+	printf("MEGA FUCK\n"); // TODO: Verify - Even more likely to break! --GM
 
 AllocateChannel11:
 	// Duplicate check...
@@ -1415,6 +1419,13 @@ AllocateMIDIChannel2:
 	goto AllocateChannel17;
 
 AllocateChannel10:
+	//printf("chnoff %i %i\n", (int)(slave - &ite->slave[0]), slave->Flags & 1);
+	/*
+	It's about time this was documented.
+	These notes are by GM.
+
+	Step 1: Look for any channels that are "off".
+	*/
 	if((slave->Flags & 1) == 0)
 		goto AllocateChannelInstrument;
 
@@ -1424,6 +1435,9 @@ AllocateChannel10:
 		goto AllocateChannel10;
 
 AllocateChannel17:
+	/*
+	Step 2: TODO: Document this!
+	*/
 	// Common sample search
 	memset(ite->ChannelCountTable, 0, (100+200)); // Clear table
 	memset(ite->ChannelCountTable+100, 0xFF, (200));
@@ -1497,8 +1511,12 @@ AllocateChannelCommonSample4:
 	// Pop     DI
 	// Pop     BX
 
+	//printf("ComS %i\n", si);
 	if(si != -1)
+	{
+		slave = &ite->slave[si];
 		goto AllocateChannelInstrument;
+	}
 
 	// Find out which host channel has the most
 	// (disowned) slave channels
@@ -1670,7 +1688,8 @@ AllocateChannelSampleSearch2:
 		goto AllocateChannelSampleSearch1;
 
 	//Pop     DI
-
+	//printf("SmpS %i\n", si);
+	slave = &ite->slave[si];
 	goto AllocateChannelInstrument;
 
 AllocateChannelSoftestSearch:
@@ -1684,7 +1703,7 @@ AllocateChannelSoftestSearch:
 	other = &ite->slave[ite->AllocateSlaveOffset];
 
 	// Offset
-	si = 0;
+	si = -1;
 	ah = 0xFF;
 
 AllocateChannel18:
@@ -1712,6 +1731,7 @@ AllocateChannel19:
 	if(si != -1)
 		goto AllocateChannelInstrument;
 
+	printf("FAIL\n");
 	*ch &= ~4;
 	return NULL;
 
@@ -1720,6 +1740,7 @@ AllocateMIDIChannelFound:
 
 AllocateChannelInstrument:
 	chn->SCOffst = slave - &ite->slave[0];
+	printf("alloc %i %i %i\n", chn->HCN, (int)(chn - &ite->chn[0]), chn->SCOffst);
 
 	slave->HCN = chn->HCN;
 	slave->HCOffst = chn - &ite->chn[0];

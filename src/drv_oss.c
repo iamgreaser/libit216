@@ -1,6 +1,35 @@
 /*
-This driver is public domain and is by GreaseMonkey.
+This driver is by GreaseMonkey and is partly derived from the IT PC Speaker driver.
+
+Thus, the obligatory copyright notice:
+
+Copyright (C) 2014, Jeffrey Lim. All Rights Reserved.
+
+Redistribution and use in source and binary forms, with or without 
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, 
+   this list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice, 
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+3. The name of the author may not be used to endorse or promote products
+   derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, 
+INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND 
+FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR 
+BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
+POSSIBILITY OF SUCH DAMAGE.
 */
+
 
 #include "it_struc.h"
 
@@ -29,7 +58,17 @@ static const char *drv_oss_DriverInitSound(it_engine *ite)
 	return NULL;
 }
 
-static inline int update_offs(it_slave *slave, int32_t *offs, int32_t *oferr, int32_t *nfreq, int32_t lpbeg, int32_t lpend)
+static inline void kill_channel(it_engine *ite, it_slave *slave)
+{
+	//slave->Flags &= 0x788D;
+	slave->Flags = 0x0200;
+	slave->LpD = 0;
+
+	if((slave->HCN & 0x80) == 0)
+		ite->chn[slave->HCN].Flags &= ~4;
+}
+
+static inline int update_offs(it_engine *ite, it_slave *slave, int32_t *offs, int32_t *oferr, int32_t *nfreq, int32_t lpbeg, int32_t lpend)
 {
 	*oferr += *nfreq;
 	*offs += *oferr>>16;
@@ -39,7 +78,7 @@ static inline int update_offs(it_slave *slave, int32_t *offs, int32_t *oferr, in
 	{
 		if((slave->LpM & 24) != 24)
 		{
-			slave->Flags |= 0x0200;
+			kill_channel(ite, slave);
 			slave->LpD = 0;
 			return 1;
 		}
@@ -53,7 +92,7 @@ static inline int update_offs(it_slave *slave, int32_t *offs, int32_t *oferr, in
 	{
 		if((slave->LpM & 8) == 0)
 		{
-			slave->Flags |= 0x0200;
+			kill_channel(ite, slave);
 			return 1;
 		}
 
@@ -70,7 +109,7 @@ static inline int update_offs(it_slave *slave, int32_t *offs, int32_t *oferr, in
 
 	if(*offs < 0 || *offs >= lpend)
 	{
-		slave->Flags |= 0x0200;
+		kill_channel(ite, slave);
 		return 1;
 	}
 
@@ -156,14 +195,15 @@ static int drv_oss_DriverPoll(it_engine *ite, uint16_t PlayMode, uint16_t Curren
 			// TODO: stereo
 			if(ite->SamplePointer[slave->Smp] == NULL)
 			{
-				slave->Flags |= 0x0200;
+				kill_channel(ite, slave);
+				break;
 
 			} else if(stereo != 0 && slave->Bit != 0) {
 				int16_t *data = (int16_t *)ite->SamplePointer[slave->Smp];
 
 				for(j = 0; j < tper*2; j+=2)
 				{
-					if(update_offs(slave, &offs, &oferr, &nfreq, lpbeg, lpend) != 0)
+					if(update_offs(ite, slave, &offs, &oferr, &nfreq, lpbeg, lpend) != 0)
 						break;
 
 					mixbuf[j+0] -= (lvol*(int32_t)data[offs])>>14;
@@ -175,7 +215,7 @@ static int drv_oss_DriverPoll(it_engine *ite, uint16_t PlayMode, uint16_t Curren
 				int8_t *data = (int8_t *)ite->SamplePointer[slave->Smp];
 				for(j = 0; j < tper*2; j+=2)
 				{
-					if(update_offs(slave, &offs, &oferr, &nfreq, lpbeg, lpend) != 0)
+					if(update_offs(ite, slave, &offs, &oferr, &nfreq, lpbeg, lpend) != 0)
 						break;
 
 					mixbuf[j+0] -= (lvol*(int32_t)data[offs])>>(14-8);
@@ -186,7 +226,7 @@ static int drv_oss_DriverPoll(it_engine *ite, uint16_t PlayMode, uint16_t Curren
 
 				for(j = 0; j < tper; j++)
 				{
-					if(update_offs(slave, &offs, &oferr, &nfreq, lpbeg, lpend) != 0)
+					if(update_offs(ite, slave, &offs, &oferr, &nfreq, lpbeg, lpend) != 0)
 						break;
 
 					mixbuf[j] -= (vol*(int32_t)data[offs])>>14;
@@ -196,7 +236,7 @@ static int drv_oss_DriverPoll(it_engine *ite, uint16_t PlayMode, uint16_t Curren
 				int8_t *data = (int8_t *)ite->SamplePointer[slave->Smp];
 				for(j = 0; j < tper; j++)
 				{
-					if(update_offs(slave, &offs, &oferr, &nfreq, lpbeg, lpend) != 0)
+					if(update_offs(ite, slave, &offs, &oferr, &nfreq, lpbeg, lpend) != 0)
 						break;
 
 					mixbuf[j] -= (vol*(int32_t)data[offs])>>(14-8);
@@ -206,6 +246,9 @@ static int drv_oss_DriverPoll(it_engine *ite, uint16_t PlayMode, uint16_t Curren
 			slave->Sample_Offset = offs;
 			slave->SmpErr = oferr;
 		}
+
+		slave->Flags &= 0x788D; // no idea why this deos it but anyway --GM
+
 		//printf("%i %i %i\n", offs, lpbeg, lpend);
 
 		/*
