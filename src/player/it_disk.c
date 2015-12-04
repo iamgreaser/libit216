@@ -35,6 +35,261 @@ const char *SHLoadMsg = "Sample Header \375D";
 const char *PatternMsg = "Pattern \375D";
 
 //
+// TODO: reflow + remove labels
+// TODO: verify 16-bit version (appears to be broken)
+// note, it's entirely likely that I'm slightly off for exceptional behaviour --GM
+void D_Decompress16BitData(uint16_t *dest, uint8_t *src, uint16_t len)
+{
+	// Register usage:
+	// BX = LastValue
+	// CH = Bitdepth
+	// CL = 16-Bitdepth, 0 for Bitdepth > 16
+	// DL = Bitsread
+	// DH = scratch
+
+	uint8_t bitdepth = 17;
+	uint8_t ibitdepth = 0;
+	int counter = len>>1;
+	uint8_t bitsread = 0;
+	uint8_t scratch = 0;
+	uint16_t lastvalue = 0;
+
+	while(counter != 0)
+	{
+		// Push    CX
+
+		uint32_t eax = *(uint32_t *)src;
+		eax >>= bitsread;
+
+		bitsread += bitdepth;
+		src += bitsread>>3;
+		bitsread &= 7;
+
+		// Pop     CX
+
+		if(bitdepth > 6)
+			goto D_Decompress16BitA;
+
+		eax <<= ibitdepth;
+
+		if((eax & 0xFFFF) != 0x8000)
+		{
+			lastvalue += (uint16_t)(((int16_t)eax)>>ibitdepth);
+			*(dest++) = lastvalue;
+
+			counter--;
+			continue;
+		}
+
+		uint8_t newbits = (eax>>16) & 15;
+		newbits++;
+
+		// Advance bits
+		bitsread += 4;
+
+	D_Decompress16BitDepthChange3:
+		//Cmp     AL, CH
+		//SBB     AL, 0FFh
+		if(newbits >= bitdepth)
+			newbits += 1;
+
+		ibitdepth = 16;
+		bitdepth = newbits;
+		//Sub     CL, AL
+		//AdC     CL, 0
+		if(ibitdepth < bitdepth)
+		{
+			ibitdepth -= bitdepth;
+			ibitdepth++;
+		} else {
+			ibitdepth -= bitdepth;
+		}
+
+		continue;
+
+	D_Decompress16BitA:
+		if(bitdepth > 16)
+			goto D_Decompress16BitB;
+
+		// Push    DX
+
+		uint16_t tmp_dx = 0xFFFF;
+		tmp_dx >>= ibitdepth;
+		uint16_t tmp_ax = (uint16_t)eax;
+		tmp_ax &= (uint16_t)tmp_dx;
+		tmp_dx >>= 1;
+		tmp_dx += 8;
+		if(tmp_ax > tmp_dx)
+			goto D_Decompress16BitE;
+		tmp_dx -= 16;
+		if(tmp_ax <= tmp_dx)
+			goto D_Decompress16BitE;
+
+		tmp_ax -= tmp_dx;
+
+		// Pop     DX
+		goto D_Decompress16BitDepthChange3;
+
+	D_Decompress16BitE:
+		// Pop     DX
+		{
+			lastvalue += (uint16_t)(((int16_t)eax)>>ibitdepth);
+			*(dest++) = lastvalue;
+
+			counter--;
+			if(counter != 0)
+				continue;
+			
+			return;
+		}
+
+	D_Decompress16BitB:
+		if((eax & 0x10000) == 0)
+		{
+			lastvalue += (uint16_t)eax;
+			*(dest++) = lastvalue;
+
+			counter--;
+			if(counter != 0)
+				continue;
+			
+			return;
+		}
+
+		ibitdepth = 16;
+		eax++; // Inc AX actually
+		ibitdepth -= (uint8_t)(eax&0xFF);
+		bitdepth = (uint8_t)(eax&0xFF);
+
+		continue;
+	}
+
+}
+
+void D_Decompress8BitData(uint8_t *dest, uint8_t *src, uint16_t len)
+{
+	// DS:SI = source
+	// ES:DI = destination
+	// CX = count.
+
+	// Register usage:
+	// BH = Bitdepth
+	// BL = lastvalue
+	// CL = 8-bitdepth, undefined for bitdepth > 8
+	// CH = Bitsread
+
+	// DX = scratch
+
+	int counter = len; // BP = counter;
+	uint8_t bitdepth = 9;
+	uint8_t lastvalue = 0;
+	uint8_t ibitdepth = 0;
+	uint8_t bitsread = 0;
+	uint16_t scratch = 0;
+
+	while(counter != 0)
+	{
+		// Get bits loaded into AX properly.
+		uint16_t ax = *(uint16_t *)src;
+		ax >>= bitsread;
+
+		// Advance SI as necessary.
+		bitsread += bitdepth;
+		src += bitsread>>3;
+		bitsread &= 7;
+
+		uint8_t tmp_al;
+		if(bitdepth <= 6)
+		{
+			ax <<= ibitdepth;
+
+			if((ax & 0xFF) != 0x80)
+			{
+				lastvalue += (uint8_t)(((int8_t)ax)>>ibitdepth);
+				*(dest++) = lastvalue;
+				counter--;
+				continue;
+			}
+
+			tmp_al = (ax>>8);
+			bitsread += 3;
+
+			tmp_al &= 7;
+			scratch = bitsread;
+			bitsread &= 7;
+			scratch >>= 3;
+
+			src += scratch;
+
+		} else {
+			tmp_al = (ax & 0xFF);
+
+			if(bitdepth > 8)
+			{
+				// 9 bit representation
+				ax &= 0x1FF;
+
+				if((ax & 0x100) == 0)
+				{
+					lastvalue += (uint8_t)tmp_al;
+					*(dest++) = lastvalue;
+					counter--;
+					continue;
+				}
+
+			} else if(bitdepth == 8) {
+				if(tmp_al < 0x7C || tmp_al > 0x83)
+				{
+					lastvalue += (uint8_t)tmp_al;
+					*(dest++) = lastvalue;
+					counter--;
+					continue;
+				}
+
+				tmp_al -= 0x7C;
+
+			} else {
+
+				tmp_al <<= 1;
+				if(tmp_al < 0x78 || tmp_al > 0x86)
+				{
+					lastvalue += (uint8_t)(((int8_t)tmp_al)>>1);
+					*(dest++) = lastvalue;
+					counter--;
+					continue;
+				}
+
+				tmp_al >>= 1;
+				tmp_al -= 0x3C;
+
+			}
+		}
+
+		ibitdepth = 8;
+		tmp_al++;
+
+		//Cmp     AL, BH
+		//SBB     AL, 0FFh
+		//Mov     BH, AL
+		//Sub     CL, AL
+		//AdC     CL, 0
+		if(tmp_al >= bitdepth)
+			tmp_al++;
+		bitdepth = tmp_al;
+
+		if(ibitdepth < tmp_al)
+		{
+			ibitdepth -= tmp_al;
+			ibitdepth++;
+		} else {
+			ibitdepth -= tmp_al;
+		}
+
+		continue;
+
+	}
+}
+
 int D_LoadSampleData(it_engine *ite, FILE *fp, uint16_t ax)
 {
 	// DS:SI points to sample header
@@ -145,11 +400,15 @@ int D_LoadSampleData(it_engine *ite, FILE *fp, uint16_t ax)
 			buflen >>= 2; // = bytes to read.
 		}
 
+		uint8_t *newsrcdata = srcdata + buflen;
+		uint16_t packed_len;
+		uint8_t packed_data[0x10000];
+		size_t packed_len_long;
+
 		// DS:DX point to buffer. For compressed samples, use patterndata area.
-		/*
-		Test    BP, BP
-		JNS     LoadCompressedSample1
+		if((bp & 0x8000) != 0)
 		{
+			/*
 			Push    DS
 			Push    CX
 			Push    DX
@@ -167,45 +426,30 @@ int D_LoadSampleData(it_engine *ite, FILE *fp, uint16_t ax)
 			Int     21h
 			Mov     CX, [DS:0]              // Bytes to read.
 			Xor     DX, DX                  // Compressed chunk.
-		}
-		LoadCompressedSample1:
-		*/
+			*/
+			fread(&packed_len, 2, 1, fp);
+			packed_len_long = packed_len;
+			packed_len_long = fread(packed_data, 1, packed_len_long, fp);
 
-		uint8_t *newsrcdata = srcdata + buflen;
-		buflen = fread(srcdata, 1, buflen, fp);
+		} else {
+			buflen = fread(srcdata, 1, buflen, fp);
+		}
 
 		// Now to decompress samples, if required.
-		/*
-		Test    BP, BP
-		JNS     LoadCompressedSample3
+		if((bp & 0x8000) != 0)
 		{
-			Pop     DI
-			Pop     CX
-			Pop     ES
-			Xor     SI, SI
-
-			Test    BP, 1
-			JNZ     LoadCompressedSample2
-
-			Call    D_Decompress8BitData    // 8 bit decode.
-			Jmp     LoadCompressedSample4
-
-		LoadCompressedSample2:                          // 16 bit decode
-			Call    D_Decompress16BitData
-
-		LoadCompressedSample4:
-			Push    ES
-			Pop     DS
-
-			Xor     SI, SI
-			Jmp     SecondDelta
+			// TODO
+			if((bp & 1) == 0)
+				D_Decompress8BitData(srcdata, packed_data, buflen); // 8 bit decode.
+			else
+				D_Decompress16BitData((uint16_t *)srcdata, packed_data, buflen); // 16 bit decode
 		}
-		LoadCompressedSample3:
-		*/
 
-		if((bp & 32) != 0) // 12-bit sample?
+		// flag skipped if sample compressed
+		if((bp & 0x8000) == 0 && (bp & 32) != 0) // 12-bit sample?
 		{
 			// TODO!
+			abort();
 			/*
 			// CX = number of bytes read.
 			//    = 3*2 number of sample read
