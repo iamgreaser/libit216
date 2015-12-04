@@ -1,4 +1,4 @@
-Modifications are by GreaseMonkey, 2014.
+Modifications are by GreaseMonkey, 2014, 2015.
 This software is derived almost entirely from the Impulse Tracker source release:
 
 Copyright (C) 2014, Jeffrey Lim. All Rights Reserved.

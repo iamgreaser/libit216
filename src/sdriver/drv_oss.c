@@ -250,9 +250,21 @@ static int drv_oss_DriverPoll(it_engine *ite, uint16_t PlayMode, uint16_t Curren
 
 			slave->Sample_Offset = offs;
 			slave->SmpErr = oferr;
+
 		}
 
-		slave->Flags &= 0x788D; // no idea why this deos it but anyway --GM
+		// test
+		if(0)
+		{
+			if((slave->Flags & 0x0200) != 0 && (slave->Flags & 1) != 0)
+			{
+				printf("Drop channel\n");
+				slave->Flags &= ~1;
+			}
+
+		}
+
+		slave->Flags &= 0x788D; // no idea why this does it but anyway --GM
 
 		//printf("%i %i %i\n", offs, lpbeg, lpend);
 
@@ -300,6 +312,17 @@ static int drv_oss_DriverReleaseSample(it_engine *ite, it_sample *smp)
 	return 0;
 }
 
+static int drv_oss_DriverMIDIOut(it_engine *ite, uint8_t al)
+{
+	//printf("MIDI %02X\n", al);
+	return 0;
+}
+
+static int drv_oss_DriverGetWaveform(it_engine *ite)
+{
+	return 0;
+}
+
 it_drvdata *drv_oss_init(it_engine *ite)
 {
 	if(is_initialised)
@@ -316,7 +339,9 @@ it_drvdata *drv_oss_init(it_engine *ite)
 	drv.StopEndOfPlaySection = 0;
 	drv.DefaultChannels = 128;
 	//drv.DefaultChannels = 10;
+
 	drv.DriverFlags = 0; // no midi out, no hiqual (at least for now)
+	// both do appear to be supported however (well, to some extent)
 
 	drv.DriverDetectCard = drv_oss_DriverDetectCard;
 	drv.DriverInitSound = drv_oss_DriverInitSound;
@@ -329,6 +354,9 @@ it_drvdata *drv_oss_init(it_engine *ite)
 	drv.DriverSetStereo = drv_oss_DriverSetStereo;
 
 	drv.DriverReleaseSample = drv_oss_DriverReleaseSample;
+
+	drv.DriverMIDIOut = drv_oss_DriverMIDIOut;
+	drv.DriverGetWaveform = drv_oss_DriverGetWaveform;
 
 	return &drv;
 }

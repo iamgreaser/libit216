@@ -1207,12 +1207,16 @@ it_slave *AllocateChannel(it_engine *ite, it_host *chn, uint8_t *ch)
 	// New note action handling...
 	slave = &ite->slave[chn->SCOffst];
 	if(slave->InsOffs == chn->Ins)
+	{
 		ite->LastSlaveChannel = chn->SCOffst + 1;
+		//printf("ins match\n");
+	}
 
 	if(slave->NNA == 0)
-		goto AllocateChannel8; // Notecut.
+		//goto AllocateChannel8; // Notecut. // SERIOUSLY WAS THIS THE BUG I HAD?!?! --GM
+		goto AllocateChannel20; // Notecut.
 	
-	printf("FUCK\n"); // Mignt not be properly handled
+	//printf("FUCK\n"); // Might not be properly handled
 	//goto AllocateChannel8; // TODO: confirm NNAs!
 
 	// Disown channel
@@ -1274,7 +1278,7 @@ AllocateChannel20Samples:
 
 	uint8_t al = ins->DCT;
 	slave->Flags = 0x200;
-	printf("DCT %i\n", al);
+	//printf("DCT %i\n", al);
 	if(al == 0)
 		goto AllocateChannelInstrument;
 
@@ -1293,7 +1297,7 @@ AllocateChannel8:
 	if(al == 0)
 		goto AllocateChannel4; // Duplicate check off.
 	
-	printf("MEGA FUCK\n"); // TODO: Verify - Even more likely to break! --GM
+	//printf("MEGA FUCK\n"); // TODO: Verify - Even more likely to break! --GM
 
 AllocateChannel11:
 	// Duplicate check...

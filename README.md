@@ -12,7 +12,7 @@ to build editor:
 
 to play delicious music:
 
-    ./it216 ~/path/to/music.it
+    ./itplay ~/path/to/music.it
 
 you will need OSS or some OSS-emulation layer for sound
 
