@@ -1553,7 +1553,7 @@ AllocateChannelCountEnd:
 	// AH = channel count
 	// AL = channel
 	// 64 = physical channels
-	
+
 	ah = 0x01;
 	al = 0x00;
 	bx = 0;
@@ -1589,69 +1589,52 @@ AllocateChannelCountSearch2:
 	ah = 0xFF;
 
 AllocateChannelNonSingle1:
-	if(al != other->HCN)
-		goto AllocateChannelNonSingle3;
-
-	// Lower Volume?
-	if(ah <= other->FV)
-		goto AllocateChannelNonSingle3;
-
-	// Now check if any other channel contains this sample
-	if(bh == other->Smp)
-		goto AllocateChannelNonSingle6;
-
-	uint8_t bl = other->Smp;
-
+	for(; cx != 0; other++, cx--)
 	{
-		//Push    CX
-		//Push    SI
+		if(al != other->HCN)
+			continue;
 
-		other->Smp = 0xFF;
+		// Lower Volume?
+		if(ah <= other->FV)
+			continue;
 
-		it_slave *subslave = &ite->slave[ite->AllocateSlaveOffset];
-		uint16_t subcx = ite->AllocateNumChannels;
+		// Now check if any other channel contains this sample
+		if(bh != other->Smp)
+		{
+			uint8_t bl = other->Smp;
 
-	AllocateChannelNonSingle2:
-		if(bh == subslave->Smp)
-			goto AllocateChannelNonSingle5;
+			other->Smp = 0xFF;
 
-		// A second sample?
-		if(bl == subslave->Smp)
-			goto AllocateChannelNonSingle5;
+			it_slave *subslave = &ite->slave[ite->AllocateSlaveOffset];
+			uint16_t subcx = ite->AllocateNumChannels;
+			for(; subcx != 0; subslave++, subcx--)
+			{
+				// might as well just leave that label in
+				if(bh == subslave->Smp)
+					goto AllocateChannelNonSingle5;
 
-	AllocateChannelNonSingle4:
-		subslave++;
-		cx--;
-		if(cx != 0)
-			goto AllocateChannelNonSingle2;
+				// A second sample?
+				if(bl == subslave->Smp)
+					goto AllocateChannelNonSingle5;
+			}
 
-		other->Smp = bl;
+			other->Smp = bl;
+			continue;
 
-		//Pop     SI
-		//Pop     CX
+		AllocateChannelNonSingle5:
+			other->Smp = bl;
+
+			//Pop     SI
+			//Pop     CX
+		}
+
+		// OK found a second sample.
+		// get offset
+		si = other - &ite->slave[0];
+
+		// Get volume
+		ah = other->FV;
 	}
-
-	goto AllocateChannelNonSingle3;
-
-AllocateChannelNonSingle5:
-	other->Smp = bl;
-
-	//Pop     SI
-	//Pop     CX
-
-AllocateChannelNonSingle6:
-	// OK found a second sample.
-	// get offset
-	si = other - &ite->slave[0];
-
-	// Get volume
-	ah = other->FV;
-
-AllocateChannelNonSingle3:
-	other++;
-	cx--;
-	if(cx != 0)
-		goto AllocateChannelNonSingle1;
 
 	if(si != -1)
 		goto AllocateChannelSampleSearch;
@@ -1669,30 +1652,27 @@ AllocateChannelSampleSearch:
 	other = &ite->slave[ite->AllocateSlaveOffset];
 	ah = 0xFF;
 
-AllocateChannelSampleSearch1:
-	// Same sample?
-	if(al != chn->Smp)
-		goto AllocateChannelSampleSearch2;
+	for(; cx != 0; cx--, other++)
+	{
+		// Same sample?
+		if(al != chn->Smp)
+			continue;
 
-	// Disowned channel?
-	if((other->HCN & 0x80) == 0)
-		goto AllocateChannelSampleSearch2;
+		// Disowned channel?
+		if((other->HCN & 0x80) == 0)
+			continue;
 
-	// Lower Volume?
-	if(ah <= other->FV)
-		goto AllocateChannelSampleSearch2;
+		// Lower Volume?
+		if(ah <= other->FV)
+			continue;
 
-	// get offset.
-	si = other - &ite->slave[0];
+		// get offset.
+		si = other - &ite->slave[0];
 
-	// Get volume
-	ah = other->FV;
+		// Get volume
+		ah = other->FV;
 
-AllocateChannelSampleSearch2:
-	other++;
-	cx--;
-	if(cx != 0)
-		goto AllocateChannelSampleSearch1;
+	}
 
 	//Pop     DI
 	//printf("SmpS %i\n", si);
