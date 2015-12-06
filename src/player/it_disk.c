@@ -34,9 +34,7 @@ const char *SampleMsg = "Sample \375D";
 const char *SHLoadMsg = "Sample Header \375D";
 const char *PatternMsg = "Pattern \375D";
 
-//
-// TODO: reflow + remove labels
-// TODO: verify 16-bit version (appears to be broken)
+// TODO: prevent buffer read overruns
 // note, it's entirely likely that I'm slightly off for exceptional behaviour --GM
 void D_Decompress16BitData(uint16_t *dest, uint8_t *src, uint16_t len)
 {
@@ -47,12 +45,12 @@ void D_Decompress16BitData(uint16_t *dest, uint8_t *src, uint16_t len)
 	// DL = Bitsread
 	// DH = scratch
 
+	int counter = len>>1;
 	uint8_t bitdepth = 17;
 	uint8_t ibitdepth = 0;
-	int counter = len>>1;
+	uint16_t lastvalue = 0;
 	uint8_t bitsread = 0;
 	uint8_t scratch = 0;
-	uint16_t lastvalue = 0;
 
 	while(counter != 0)
 	{
@@ -67,101 +65,85 @@ void D_Decompress16BitData(uint16_t *dest, uint8_t *src, uint16_t len)
 
 		// Pop     CX
 
-		if(bitdepth > 6)
-			goto D_Decompress16BitA;
-
-		eax <<= ibitdepth;
-
-		if((eax & 0xFFFF) != 0x8000)
+		if(bitdepth <= 6)
 		{
-			lastvalue += (uint16_t)(((int16_t)eax)>>ibitdepth);
-			*(dest++) = lastvalue;
+			eax <<= ibitdepth;
 
-			counter--;
-			continue;
-		}
+			if((eax & 0xFFFF) != 0x8000)
+			{
+				lastvalue += (uint16_t)(((int16_t)eax)>>ibitdepth);
+				*(dest++) = lastvalue;
+				counter--;
+				continue;
+			}
 
-		uint8_t newbits = (eax>>16) & 15;
-		newbits++;
+			uint8_t newbits = (eax>>16) & 15;
+			newbits++;
 
-		// Advance bits
-		bitsread += 4;
+			// Advance bits
+			bitsread += 4;
+			if(newbits >= bitdepth)
+				newbits += 1;
 
-	D_Decompress16BitDepthChange3:
-		//Cmp     AL, CH
-		//SBB     AL, 0FFh
-		if(newbits >= bitdepth)
-			newbits += 1;
+			ibitdepth = 16;
+			bitdepth = newbits;
+			if(ibitdepth < bitdepth)
+			{
+				ibitdepth -= bitdepth;
+				ibitdepth++;
+			} else {
+				ibitdepth -= bitdepth;
+			}
 
-		ibitdepth = 16;
-		bitdepth = newbits;
-		//Sub     CL, AL
-		//AdC     CL, 0
-		if(ibitdepth < bitdepth)
-		{
-			ibitdepth -= bitdepth;
-			ibitdepth++;
+		} else if(bitdepth <= 16) {
+
+			// Push    DX
+
+			uint16_t tmp_dx = 0xFFFF;
+			tmp_dx >>= ibitdepth;
+			uint16_t tmp_ax = (uint16_t)eax;
+			tmp_ax &= (uint16_t)tmp_dx;
+			tmp_dx >>= 1;
+			tmp_dx += 8;
+			tmp_dx -= 16;
+			if(tmp_ax > (uint16_t)(tmp_dx+16) || tmp_ax <= (uint16_t)tmp_dx)
+			{
+				eax <<= ibitdepth;
+				lastvalue += (uint16_t)(((int16_t)eax)>>ibitdepth);
+				*(dest++) = lastvalue;
+				counter--;
+				continue;
+			}
+
+			// Pop     DX
+
+			uint8_t newbits = (uint8_t)(tmp_ax - tmp_dx);
+			if(newbits >= bitdepth)
+				newbits += 1;
+
+			ibitdepth = 16;
+			bitdepth = newbits;
+			if(ibitdepth < bitdepth)
+			{
+				ibitdepth -= bitdepth;
+				ibitdepth++;
+			} else {
+				ibitdepth -= bitdepth;
+			}
 		} else {
-			ibitdepth -= bitdepth;
-		}
 
-		continue;
-
-	D_Decompress16BitA:
-		if(bitdepth > 16)
-			goto D_Decompress16BitB;
-
-		// Push    DX
-
-		uint16_t tmp_dx = 0xFFFF;
-		tmp_dx >>= ibitdepth;
-		uint16_t tmp_ax = (uint16_t)eax;
-		tmp_ax &= (uint16_t)tmp_dx;
-		tmp_dx >>= 1;
-		tmp_dx += 8;
-		if(tmp_ax > tmp_dx)
-			goto D_Decompress16BitE;
-		tmp_dx -= 16;
-		if(tmp_ax <= tmp_dx)
-			goto D_Decompress16BitE;
-
-		tmp_ax -= tmp_dx;
-
-		// Pop     DX
-		goto D_Decompress16BitDepthChange3;
-
-	D_Decompress16BitE:
-		// Pop     DX
-		{
-			lastvalue += (uint16_t)(((int16_t)eax)>>ibitdepth);
-			*(dest++) = lastvalue;
-
-			counter--;
-			if(counter != 0)
+			if((eax & 0x10000) == 0)
+			{
+				lastvalue += (uint16_t)eax;
+				*(dest++) = lastvalue;
+				counter--;
 				continue;
-			
-			return;
+			}
+
+			eax++; // Inc AX actually
+			bitdepth = (uint8_t)(eax&0xFF);
+			ibitdepth = 16 - bitdepth;
 		}
-
-	D_Decompress16BitB:
-		if((eax & 0x10000) == 0)
-		{
-			lastvalue += (uint16_t)eax;
-			*(dest++) = lastvalue;
-
-			counter--;
-			if(counter != 0)
-				continue;
-			
-			return;
-		}
-
-		ibitdepth = 16;
-		eax++; // Inc AX actually
-		ibitdepth -= (uint8_t)(eax&0xFF);
-		bitdepth = (uint8_t)(eax&0xFF);
-
-		continue;
 	}
 
 }
@@ -182,8 +164,8 @@ void D_Decompress8BitData(uint8_t *dest, uint8_t *src, uint16_t len)
 
 	int counter = len; // BP = counter;
 	uint8_t bitdepth = 9;
-	uint8_t lastvalue = 0;
 	uint8_t ibitdepth = 0;
+	uint8_t lastvalue = 0;
 	uint8_t bitsread = 0;
 	uint16_t scratch = 0;
 

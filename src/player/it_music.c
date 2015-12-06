@@ -37,9 +37,9 @@ it_engine *ITEngineNew()
 	it_engine *ite = calloc(sizeof(it_engine), 1);
 
 	// TODO: initialise properly
-	for(i = 0; i < 199; i++)
+	for(i = 0; i < 200; i++)
 		ite->pat[i] = NULL;
-	for(i = 0; i < 99; i++)
+	for(i = 0; i < 100; i++)
 		ite->SamplePointer[i] = NULL;
 
 	ite->NumChannels = 256;
