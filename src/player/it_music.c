@@ -1693,25 +1693,21 @@ AllocateChannelSoftestSearch:
 	si = -1;
 	ah = 0xFF;
 
-AllocateChannel18:
-	if((other->HCN & 0x80) == 0)
-		goto AllocateChannel19; // No.. then look for next
+	for(; cx != 0; cx--, other++)
+	{
+		if((other->HCN & 0x80) == 0)
+			continue; // No.. then look for next
 
-	// Volume set...
-	if(ah < other->FV)
-		goto AllocateChannel19;
+		// Volume set...
+		if(ah < other->FV)
+			continue;
 
-	// get offset.
-	si = other - &ite->slave[0];
+		// get offset.
+		si = other - &ite->slave[0];
 
-	// Get volume
-	ah = other->FV;
-
-AllocateChannel19:
-	other++;
-	cx--;
-	if(cx != 0)
-		goto AllocateChannel18;
+		// Get volume
+		ah = other->FV;
+	}
 
 	// Pop     DI
 
@@ -3085,7 +3081,7 @@ int UpdateEnvelope(it_engine *ite, it_slen *slen, it_envelope *env, uint16_t bp)
 		uint8_t bh = env->LpE;
 
 		// the flow here is very weird in the original source --GM
-		int use_sus = ((env->Flg & 4) != 0) && (bp != 0);
+		int use_sus = ((env->Flg & 4) != 0) && (bp == 0);
 		int has_loop = (use_sus ? (env->Flg & 4) : (env->Flg & 2)) != 0;
 
 		if(use_sus)
