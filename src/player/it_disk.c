@@ -723,6 +723,7 @@ int D_LoadIT(it_engine *ite, const char *fname)
 		ite->hdr.Time_Stamp = -ite->hdr.Time_Stamp;
 		ite->hdr.Time_Stamp = (ite->hdr.Time_Stamp << 4) | (ite->hdr.Time_Stamp >> (32-4));
 		ite->hdr.Time_Stamp ^= 0x4C48544A; // 'JTHL' - TODO CONFIRM BYTE ORDER
+		printf("Timestamp: %08X\n", ite->hdr.Time_Stamp);
 	}
 
 	if((ite->hdr.Special & 2) != 0) // Time data?
@@ -847,10 +848,10 @@ int D_LoadIT(it_engine *ite, const char *fname)
 	// this is different from the actual code --GM
 	uint32_t iptrs[100];
 	uint32_t sptrs[100];
-	uint32_t pptrs[100];
+	uint32_t pptrs[200];
 	assert(ite->hdr.InsNum <= 99);
 	assert(ite->hdr.SmpNum <= 99);
-	assert(ite->hdr.PatNum <= 99);
+	assert(ite->hdr.PatNum <= 199);
 
 	fread(iptrs, 4, ite->hdr.InsNum, fp);
 	fread(sptrs, 4, ite->hdr.SmpNum, fp);

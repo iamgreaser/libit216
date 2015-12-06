@@ -625,12 +625,15 @@ void InitPlayInstrument(it_engine *ite, it_host *chn, it_slave *slave, int bx) /
 	slave->V.EnvelopeValue = 0x400000; // 64*65536
 	slave->V.EnvPos = 0;
 	slave->V.CurEnN = 0;
+	slave->V.NextET = 0;
 	slave->P.EnvelopeValue = 0;
 	slave->P.EnvPos = 0;
 	slave->P.CurEnN = 0;
+	slave->P.NextET = 0;
 	slave->Pt.EnvelopeValue = 0;
 	slave->Pt.EnvPos = 0;
 	slave->Pt.CurEnN = 0;
+	slave->Pt.NextET = 0;
 
 	uint16_t etrigger = 0;
 	etrigger |= ((ins->PitchEnv.Flg&1)<<14);
@@ -3359,7 +3362,7 @@ void UpdateInstruments16(it_engine *ite, it_slave *slave)
 	{
 		slave->Flags |= 16; // Recalculate volume
 
-		if(UpdateEnvelope(ite, &slave->P, &ins->PanEnv, bp) == 0)
+		if(UpdateEnvelope(ite, &slave->V, &ins->VolEnv, bp) == 0)
 		{
 			// Note fade on?
 			if((slave->Flags & 8) != 0)

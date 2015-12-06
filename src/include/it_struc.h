@@ -306,12 +306,14 @@ struct it_engine_s
 	it_header hdr;
 	it_host chn[64];
 	it_slave slave[256];
-	it_instrument ins[99];
-	it_sample smp[99];
-	it_pattern *pat[199];
+	it_instrument ins[100];
+	it_sample smp[100];
+	it_pattern *pat[200];
 	uint8_t ord[0x100];
-	uint8_t patspace[64000];
-	uint8_t *SamplePointer[99];
+	//uint8_t patspace[64000];
+	//uint8_t patspace[256*64*5];
+	uint8_t patspace[128000];
+	uint8_t *SamplePointer[100];
 
 	uint16_t LastSample       ;//= 0;
 	uint16_t PlayMode         ;//= 0;
