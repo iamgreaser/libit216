@@ -1,0 +1,67 @@
+# I personally don't care if you steal this makefile. --GM
+
+SRCDIR = src
+INCDIR = src/include
+INCLUDES = \
+	$(INCDIR)/it_obj.h \
+	$(INCDIR)/network.h \
+	$(INCDIR)/switch.h \
+	$(INCDIR)/username.h \
+	$(INCDIR)/wavswitc.h \
+	\
+	$(INCDIR)/it_struc.h
+
+OBJDIR_PLAYER = $(OBJDIR)/itplay
+OBJDIR_EDITOR = $(OBJDIR)/itedit
+
+OBJS_PLAYER = \
+	$(OBJDIR_PLAYER)/player/it_disk.o \
+	$(OBJDIR_PLAYER)/player/it_music.o \
+	$(OBJDIR_PLAYER)/player/it_m_eff.o \
+	\
+	$(OBJDIR_PLAYER)/sdriver/drv_oss.o \
+	\
+	$(OBJDIR_PLAYER)/player.o
+
+OBJS_EDITOR = \
+	$(OBJDIR_EDITOR)/player/it_disk.o \
+	$(OBJDIR_EDITOR)/player/it_music.o \
+	$(OBJDIR_EDITOR)/player/it_m_eff.o \
+	\
+	$(OBJDIR_EDITOR)/sdriver/drv_oss.o \
+	\
+	$(OBJDIR_EDITOR)/ui/it_m.o \
+	$(OBJDIR_EDITOR)/ui/it_obj1.o \
+	\
+	$(OBJDIR_EDITOR)/ui/it.o
+
+all: $(BINNAME_PLAYER) $(BINNAME_EDITOR) $(TOOLS)
+
+clean:
+	rm -f $(OBJS_PLAYER)
+	rm -f $(OBJS_EDITOR)
+
+$(OBJDIR):
+	mkdir $(OBJDIR) || true
+	mkdir $(OBJDIR_PLAYER) || true
+	mkdir $(OBJDIR_EDITOR) || true
+	mkdir $(OBJDIR_PLAYER)/player || true
+	mkdir $(OBJDIR_EDITOR)/player || true
+	mkdir $(OBJDIR_PLAYER)/sdriver || true
+	mkdir $(OBJDIR_EDITOR)/sdriver || true
+	mkdir $(OBJDIR_EDITOR)/ui || true
+
+$(OBJDIR_PLAYER)/%.o: $(SRCDIR)/%.c $(OBJDIR) $(INCLUDES)
+	$(CC) -c -o $@ $(CFLAGS) $<
+
+$(OBJDIR_EDITOR)/%.o: $(SRCDIR)/%.c $(OBJDIR) $(INCLUDES)
+	$(CC) -c -o $@ $(CFLAGS) -DEDITOR $<
+
+$(BINNAME_PLAYER): $(OBJDIR) $(OBJS_PLAYER)
+	$(CC) -o $(BINNAME_PLAYER) $(LDFLAGS) $(OBJS_PLAYER) $(LIBS)
+
+$(BINNAME_EDITOR): $(OBJDIR) $(OBJS_EDITOR)
+	$(CC) -o $(BINNAME_EDITOR) $(LDFLAGS) $(OBJS_EDITOR) $(LIBS)
+
+.PHONY: all clean
+

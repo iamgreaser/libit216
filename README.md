@@ -2,11 +2,15 @@ this is a port of this thing to C: http://bitbucket.org/jthlim/impulsetracker
 
 licence now exists, check LICENCE.TXT
 
-to build player:
+to build all the things:
+
+    make
+
+to build player manually:
 
     cc -o itplay src/sdriver/*.c src/player/*.c src/player.c -I src/include/ -lm
 
-to build editor:
+to build editor manually:
 
     cc -o itedit -DEDITOR src/sdriver/*.c src/player/*.c src/ui/*.c -I src/include/ -lm
 
