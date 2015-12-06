@@ -1711,10 +1711,10 @@ void CommandI(it_engine *ite, it_host *chn)
 	if((chn->TCD & 0x80) != 0 || chn->TCD == 0)
 	{
 		chn->Too ^= 1;
-		chn->TCD = (uint8_t)(chn->Too == 0 ? (chn->_40>>8) : (chn->_40&0xFF));
+		chn->TCD = (uint8_t)(chn->Too != 0 ? (chn->_40>>8) : (chn->_40&0xFF));
 	}
 
-	if(chn->Too != 0)
+	if(chn->Too != 1)
 		slave->Vol = 0;
 
 }
