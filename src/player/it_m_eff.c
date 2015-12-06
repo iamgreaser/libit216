@@ -210,9 +210,10 @@ void VolumeCommandC(it_engine *ite, it_host *chn)
 void VolumeCommandD(it_engine *ite, it_host *chn)
 {
 	it_slave *slave = &ite->slave[chn->SCOffst];
-	uint8_t al = chn->VVal - slave->VS;
+	uint8_t al = slave->VS - chn->VVal;
 
-	if((al & 0x80) != 0)
+	//if((al & 0x80) != 0) // JNC, not JNS
+	if(slave->VS < chn->VVal)
 	{
 		chn->Flags &= ~0x0100; // Turn off effect calling
 		al = 0;
