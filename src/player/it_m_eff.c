@@ -1301,12 +1301,12 @@ void InitCommandS(it_engine *ite, it_host *chn)
 				ite->ProcessRow = ((uint16_t)chn->PLR)-1;
 				ite->PatternLooping = 1;
 
-			} else if((--chn->PLC) == 0) {
+			} else if((--chn->PLC) != 0) {
 				ite->ProcessRow = ((uint16_t)chn->PLR)-1;
 				ite->PatternLooping = 1;
 
 			} else {
-				chn->PLR = ++ite->CurrentRow;
+				chn->PLR = 1+ite->CurrentRow;
 
 			}
 			return;

@@ -1216,11 +1216,9 @@ it_slave *AllocateChannel(it_engine *ite, it_host *chn, uint8_t *ch)
 	}
 
 	if(slave->NNA == 0)
-		//goto AllocateChannel8; // Notecut. // SERIOUSLY WAS THIS THE BUG I HAD?!?! --GM
 		goto AllocateChannel20; // Notecut.
 	
 	//printf("FUCK\n"); // Might not be properly handled
-	//goto AllocateChannel8; // TODO: confirm NNAs!
 
 	// Disown channel
 	slave->HCN |= 0x80;
@@ -1332,65 +1330,63 @@ AllocateDCT:
 	*ch = ins->DCA;
 
 AllocateChannel6:
-	if((slave->Flags & 1) == 0)
-		goto AllocateChannel7;
+	for(; (cx & 0xFF) != 0; cx--, slave++)
+	{
+		if((slave->Flags & 1) == 0)
+			continue;
 
-	if(chn->Smp == 101)
-		goto AllocateChannelMIDIDCT;
+		if(chn->Smp == 101)
+			goto AllocateChannelMIDIDCT;
 
-	al = slave->HCN;
-	if(ah != al)
-		goto AllocateChannel7;
+		al = slave->HCN;
+		if(ah != al)
+			continue;
 
-	// OK. same channel... now..
+		// OK. same channel... now..
 
-AllocateChannelMIDIDCT:
-	// Same inst?
-	if(dh != slave->Ins)
-		goto AllocateChannel7;
+	AllocateChannelMIDIDCT:
+		// Same inst?
+		if(dh != slave->Ins)
+			continue;
 
-	// Same note/sample/inst?
-	// ("else else" is 0x36 --GM)
-	if(dh != (bp == 0x32 ? slave->Nte : bp == 0x33 ? slave->Ins : slave->Smp))
-		goto AllocateChannel7;
+		// Same note/sample/inst?
+		// ("else else" is 0x36 --GM)
+		if(dh != (bp == 0x32 ? slave->Nte : bp == 0x33 ? slave->Ins : slave->Smp))
+			continue;
 
-	// New note is a MIDI?
-	if(chn->Smp == 101)
-		goto AllocateChannelMIDIHandling;
+		// New note is a MIDI?
+		if(chn->Smp == 101)
+			goto AllocateChannelMIDIHandling;
 
-	if(*ch != slave->DCA)
-		goto AllocateChannel7;
+		if(*ch != slave->DCA)
+			continue;
 
-	// Checks for hiqual
-	if(*ch == 0)
-		goto AllocateChannel20Samples;
+		// Checks for hiqual
+		if(*ch == 0)
+			goto AllocateChannel20Samples;
 
-	slave->DCT = 0;
-	al = *ch;
-	al++; if(al == 0) ah++;
-	goto AllocateHandleNNA;
+		slave->DCT = 0;
+		al = *ch;
+		al++; if(al == 0) ah++;
+		goto AllocateHandleNNA;
 
-AllocateChannelMIDIHandling:
-	// Is current channel a MIDI chan
-	if(slave->Smp != 100)
-		goto AllocateChannel7;
+	AllocateChannelMIDIHandling:
+		// Is current channel a MIDI chan
+		if(slave->Smp != 100)
+			continue;
 
-	if(ah != slave->MCh)
-		goto AllocateChannel7;
+		if(ah != slave->MCh)
+			continue;
 
-	slave->Flags |= 0x200;
-	if((slave->HCN & 0x80) != 0)
-		goto AllocateChannel7;
+		slave->Flags |= 0x200;
+		if((slave->HCN & 0x80) != 0)
+			continue;
 
-	bp = slave->HCOffst;
-	slave->HCN |= 0x80;
-	ite->chn[bp].Flags &= ~4;
+		bp = slave->HCOffst;
+		slave->HCN |= 0x80;
+		ite->chn[bp].Flags &= ~4;
 
-AllocateChannel7:
-	slave++;
-	cx--;
-	if((cx & 0xFF) != 0)
-		goto AllocateChannel6;
+	}
 
 AllocateChannel4:
 	slave = &ite->slave[ite->AllocateSlaveOffset];
@@ -1454,43 +1450,38 @@ AllocateChannel17:
 	uint32_t ebx = 0;
 	it_slave *other = &ite->slave[ite->AllocateSlaveOffset];
 
-AllocateChannelCommonSample1:
-	// BX = sample pointer into table.
-	if(1){}
-	uint16_t bx = other->Smp;
+	for(; cx != -0; cx--, other++)
+	{
+		// BX = sample pointer into table.
+		uint16_t bx = other->Smp;
 
-	// Just for safety
-	if(bx > 99)
-		goto AllocateChannelCommonSample2;
+		// Just for safety
+		if(bx > 99)
+			continue;
 
-	ite->ChannelCountTable[bx]++;
+		ite->ChannelCountTable[bx]++;
 
-	// Volume
-	ah = ite->ChannelCountTable[bx+300];
+		// Volume
+		ah = ite->ChannelCountTable[bx+300];
 
-	// Disowned channel?
-	if((other->HCN & 0x80) == 0)
-		goto AllocateChannelCommonSample2;
+		// Disowned channel?
+		if((other->HCN & 0x80) == 0)
+			continue;
 
-	// Lower Volume?
-	if(ah <= other->FV)
-		goto AllocateChannelCommonSample2;
+		// Lower Volume?
+		if(ah <= other->FV)
+			continue;
 
-	// Get volume
-	ah = other->FV;
+		// Get volume
+		ah = other->FV;
 
-	// Store location
-	ite->ChannelCountTable[100+bx+bx+0] = other - &ite->slave[0];
-	//ite->ChannelCountTable[100+bx+bx+1] = (other - &ite->slave[0])>>8;
+		// Store location
+		ite->ChannelCountTable[100+bx+bx+0] = other - &ite->slave[0];
+		//ite->ChannelCountTable[100+bx+bx+1] = (other - &ite->slave[0])>>8;
 
-	// Store volume
-	ite->ChannelCountTable[300+bx] = ah;
-
-AllocateChannelCommonSample2:
-	other++;
-	cx--;
-	if(cx != 0)
-		goto AllocateChannelCommonSample1;
+		// Store volume
+		ite->ChannelCountTable[300+bx] = ah;
+	}
 
 	// OK.. now search table for maximum
 	// occurrence of sample...
@@ -1502,18 +1493,14 @@ AllocateChannelCommonSample2:
 	ah = 2;
 	cx = 100;
 
-AllocateChannelCommonSample3:
-	if(ah >= ite->ChannelCountTable[di])
-		goto AllocateChannelCommonSample4;
+	for(; cx != 0; cx--, di++)
+	{
+		if(ah >= ite->ChannelCountTable[di])
+			continue;
 
-	ah = ite->ChannelCountTable[di];
-	si = (int8_t)ite->ChannelCountTable[di+di+100+0];
-
-AllocateChannelCommonSample4:
-	di++;
-	cx--;
-	if(cx != 0)
-		goto AllocateChannelCommonSample3;
+		ah = ite->ChannelCountTable[di];
+		si = (int8_t)ite->ChannelCountTable[di+di+100+0];
+	}
 
 	// Pop     DI
 	// Pop     BX
@@ -1532,7 +1519,7 @@ AllocateChannelCommonSample4:
 
 	memset(ite->ChannelCountTable, 0, 64);
 
-	bx = 0;
+	uint16_t bx = 0;
 	cx = ite->AllocateNumChannels;
 	other = &ite->slave[ite->AllocateSlaveOffset];
 
