@@ -645,6 +645,7 @@ void InitPlayInstrument(it_engine *ite, it_host *chn, it_slave *slave, int bx) /
 	uint16_t lsc = ite->LastSlaveChannel;
 	if(lsc != 0)
 	{
+		//printf("last slave channel %i\n", lsc);
 		it_slave *lslave = &ite->slave[lsc-1];
 
 		if((ins->VolEnv.Flg & 9) == 9)
@@ -1223,9 +1224,6 @@ it_slave *AllocateChannelInstrument(it_engine *ite, it_host *chn, it_slave *slav
 
 	return slave;
 }
-
-it_slave *AllocateChannelInstrument(it_engine *ite, it_host *chn, it_slave *slave,
-	it_instrument *ins, uint8_t *ch);
 
 it_slave *AllocateChannel(it_engine *ite, it_host *chn, uint8_t *ch)
 {

@@ -386,7 +386,7 @@ InitNoCommand1:
 		goto NoOldEffect;
 
 	slave->FadeOut = 0x0400;
-	InitPlayInstrument(ite, chn, slave, chn->Ins);
+	InitPlayInstrument(ite, chn, slave, chn->Ins-1);
 
 NoOldEffect:
 	// TODO: fix this dreadful flow code once everything works --GM
@@ -633,9 +633,11 @@ void InitCommandG(it_engine *ite, it_host *chn)
 	}
 
 	if((chn->Flags & 4) == 0)
+	{
 		InitNoCommand(ite, chn);
-	else
+	} else {
 		InitCommandG11(ite, chn);
+	}
 }
 
 void InitCommandG11(it_engine *ite, it_host *chn)
@@ -651,7 +653,7 @@ void InitCommandG11(it_engine *ite, it_host *chn)
 		if((ite->hdr.Flags & 0x20) == 0)
 		{
 			// Don't overwrite note if MIDI!
-			if(chn->Smp == 101)
+			if(chn->Smp != 101)
 			{
 				// Ins the same?
 
@@ -702,10 +704,12 @@ void InitCommandG11(it_engine *ite, it_host *chn)
 			{
 				// Now for instruments
 				slave->FadeOut = 0x0400;
-				it_instrument *ins = &ite->ins[chn->Ins];
+				it_instrument *ins = &ite->ins[chn->Ins-1];
 
 				uint16_t oldflags = slave->Flags;
-				InitPlayInstrument(ite, chn, slave, chn->Ins);
+				// BUG FIND: Premature Gxx noteoff doesn't happen when this call is commented out
+				// (suspected off-by-one)
+				InitPlayInstrument(ite, chn, slave, chn->Ins-1);
 
 				if((oldflags & 1) != 0)
 					slave->Flags &= ~0x100;
