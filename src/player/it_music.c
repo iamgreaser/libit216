@@ -2676,8 +2676,12 @@ void PreInitCommand(it_engine *ite, it_host *chn)
 
 			it_instrument *ins = &ite->ins[chn->Ins-1];
 
-			if(ins->MCh == 0)
+			// XXX: work around a modplugism
+			if(ins->MCh == 0 || ins->MCh >= 128)
 			{
+				if(ins->MCh >= 128)
+					printf("MODPLUGISM WARNING: midi channel %02X used for effect slot - WILL PROBABLY CRASH IT\n", ins->MCh);
+
 				chn->Nt2 = ins->NoteSamp[chn->Nte][0];
 				chn->Smp = ins->NoteSamp[chn->Nte][1];
 				// This part is fine.
