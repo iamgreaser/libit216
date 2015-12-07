@@ -1523,15 +1523,11 @@ AllocateChannel17:
 	cx = ite->AllocateNumChannels;
 	other = &ite->slave[ite->AllocateSlaveOffset];
 
-AllocateChannelCount1:
-	bx = other->HCN & 0x3F;
-	ite->ChannelCountTable[bx]++;
-
-AllocateChannelCount2:
-	other++;
-	cx--;
-	if(cx != 0)
-		goto AllocateChannelCount1;
+	for(; cx != 0; cx--, other++)
+	{
+		bx = other->HCN & 0x3F;
+		ite->ChannelCountTable[bx]++;
+	}
 
 AllocateChannelCountEnd:
 	// OK.. search through and find
@@ -1546,18 +1542,14 @@ AllocateChannelCountEnd:
 	bx = 0;
 	cx = 64;
 
-AllocateChannelCountSearch1:
-	if(ah >= ite->ChannelCountTable[bx])
-		goto AllocateChannelCountSearch2;
+	for(; cx != 0; cx--, bx++)
+	{
+		if(ah >= ite->ChannelCountTable[bx])
+			continue;
 
-	ah = ite->ChannelCountTable[bx];
-	al = bx & 0xFF;
-
-AllocateChannelCountSearch2:
-	bx++;
-	cx--;
-	if(cx != 0)
-		goto AllocateChannelCountSearch1;
+		ah = ite->ChannelCountTable[bx];
+		al = bx & 0xFF;
+	}
 
 	// AH = channel to use.
 	// ^ don't you mean AL, Jeff? AH is the volume. --GM
@@ -1575,7 +1567,6 @@ AllocateChannelCountSearch2:
 	it_slave *sither = &ite->slave[ite->AllocateSlaveOffset];
 	ah = 0xFF;
 
-AllocateChannelNonSingle1:
 	for(; cx != 0; other++, cx--)
 	{
 		if(al != other->HCN)
@@ -1594,22 +1585,27 @@ AllocateChannelNonSingle1:
 
 			it_slave *subslave = &ite->slave[ite->AllocateSlaveOffset];
 			uint16_t subcx = ite->AllocateNumChannels;
+			int need_continue = 1;
 			for(; subcx != 0; subslave++, subcx--)
 			{
 				// might as well just leave that label in
 				if(bh == subslave->Smp)
-					goto AllocateChannelNonSingle5;
+				{
+					need_continue = 0;
+					break;
+				}
 
 				// A second sample?
 				if(bl == subslave->Smp)
-					goto AllocateChannelNonSingle5;
+				{
+					need_continue = 0;
+					break;
+				}
 			}
 
 			other->Smp = bl;
-			continue;
-
-		AllocateChannelNonSingle5:
-			other->Smp = bl;
+			if(need_continue != 0)
+				continue;
 
 			//Pop     SI
 			//Pop     CX
@@ -1623,14 +1619,13 @@ AllocateChannelNonSingle1:
 		ah = other->FV;
 	}
 
-	if(si != -1)
-		goto AllocateChannelSampleSearch;
+	if(si == -1)
+	{
+		si = al & 0x3F;
+		ite->ChannelCountTable[si] = 0;
+		goto AllocateChannelCountEnd; // Next cycle...
+	}
 
-	si = al & 0x3F;
-	ite->ChannelCountTable[si] = 0;
-	goto AllocateChannelCountEnd; // Next cycle...
-
-AllocateChannelSampleSearch:
 	//Push    DI
 
 	al = slave->Smp;
