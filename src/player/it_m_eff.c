@@ -386,7 +386,7 @@ InitNoCommand1:
 		goto NoOldEffect;
 
 	slave->FadeOut = 0x0400;
-	InitPlayInstrument(ite, chn, slave, chn->Ins-1);
+	InitPlayInstrument(ite, chn, slave, chn->Ins);
 
 NoOldEffect:
 	// TODO: fix this dreadful flow code once everything works --GM
@@ -707,9 +707,8 @@ void InitCommandG11(it_engine *ite, it_host *chn)
 				it_instrument *ins = &ite->ins[chn->Ins-1];
 
 				uint16_t oldflags = slave->Flags;
-				// BUG FIND: Premature Gxx noteoff doesn't happen when this call is commented out
-				// (suspected off-by-one)
-				InitPlayInstrument(ite, chn, slave, chn->Ins-1);
+
+				InitPlayInstrument(ite, chn, slave, chn->Ins);
 
 				if((oldflags & 1) != 0)
 					slave->Flags &= ~0x100;

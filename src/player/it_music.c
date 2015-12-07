@@ -571,8 +571,8 @@ void RecalculateAllVolumes(it_engine *ite)
 
 void InitPlayInstrument(it_engine *ite, it_host *chn, it_slave *slave, int bx) // BX = instrument offset
 {
-	slave->InsOffs = bx; // InsOffset
-	it_instrument *ins = &ite->ins[bx];
+	slave->InsOffs = bx-1; // InsOffset
+	it_instrument *ins = &ite->ins[bx-1];
 
 	slave->NNA = ins->NNA;
 	slave->DCT = ins->DCT;
@@ -1179,7 +1179,7 @@ it_slave *AllocateChannelInstrument(it_engine *ite, it_host *chn, it_slave *slav
 	// Reset loop dirn
 	slave->LpD = 0;
 
-	InitPlayInstrument(ite, chn, slave, ins - &ite->ins[0]);
+	InitPlayInstrument(ite, chn, slave, (ins - &ite->ins[0])+1);
 
 	slave->SVl = ins->GbV;
 
