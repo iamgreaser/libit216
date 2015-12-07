@@ -1161,6 +1161,72 @@ it_slave *AllocateChannel15(it_engine *ite, it_host *chn, uint8_t *ch)
 
 }
 
+it_slave *AllocateChannelInstrument(it_engine *ite, it_host *chn, it_slave *slave,
+	it_instrument *ins, uint8_t *ch)
+{
+	chn->SCOffst = slave - &ite->slave[0];
+	printf("alloc %i %i %i\n", chn->HCN, (int)(chn - &ite->chn[0]), chn->SCOffst);
+
+	slave->HCN = chn->HCN;
+	slave->HCOffst = chn - &ite->chn[0];
+
+	// Reset vibrato info
+	slave->Bit = 0;
+	slave->ViP = 0;
+	slave->ViDepth = 0;
+
+	// Reset loop dirn
+	slave->LpD = 0;
+
+	InitPlayInstrument(ite, chn, slave, ins - &ite->ins[0]);
+
+	slave->SVl = ins->GbV;
+
+	//Pop     CX
+
+	// FadeOut, VolEnv&Pos
+	slave->FadeOut = 0x0400;
+
+	uint8_t al = chn->Nte;
+	uint8_t ah = chn->Ins;
+	if(chn->Smp == 101)
+		al = chn->Nt2;
+
+	slave->Nte = al;
+	slave->Ins = ah;
+
+	if(chn->Smp == 0)
+	{
+		slave->Flags = 0x200;
+		*ch &= ~4;
+		return NULL;
+	}
+
+	I_TagSample(ite, chn->Smp-1);
+	slave->Smp = chn->Smp-1;
+
+	// Sample memory offset.
+	slave->SmpOffs = chn->Smp-1;
+	it_sample *smp = &ite->smp[slave->SmpOffs];
+
+	if(smp->Length == 0 || (smp->Flg & 1) == 0)
+	{
+		// No sample!
+		slave->Flags = 0x200;
+		*ch &= ~4;
+		return NULL;
+	}
+
+	slave->Bit = (smp->Flg & 2);
+	slave->SVl = (smp->GvL * (uint16_t)slave->SVl) >> 6; // SI = 0->128
+	//printf("INS VOL %i SMP %i %i\n", slave->SVl, slave->Smp, chn->Smp);
+
+	return slave;
+}
+
+it_slave *AllocateChannelInstrument(it_engine *ite, it_host *chn, it_slave *slave,
+	it_instrument *ins, uint8_t *ch);
+
 it_slave *AllocateChannel(it_engine *ite, it_host *chn, uint8_t *ch)
 {
 	// Returns SI. Carry set if problems
@@ -1281,7 +1347,7 @@ AllocateChannel20Samples:
 	slave->Flags = 0x200;
 	//printf("DCT %i\n", al);
 	if(al == 0)
-		goto AllocateChannelInstrument;
+		return AllocateChannelInstrument(ite, chn, slave, ins, ch);
 
 	goto AllocateChannel11;
 
@@ -1394,63 +1460,57 @@ AllocateChannel4:
 	//Mov     CX, AllocateNumChannels
 	//Mov     SI, AllocateSlaveOffset
 
-	if(chn->Smp != 101)
-		goto AllocateChannel10;
+	if(chn->Smp == 101)
+	{
+		// MIDI 'slave channels' have to be maintained if still referenced
 
-	// MIDI 'slave channels' have to be maintained if still referenced
+		//Push    DI
 
-	//Push    DI
+		for(; cx != 0; cx--, slave++)
+		{
+			if((slave->Flags & 1) != 0)
+				continue;
 
-AllocateMIDIChannel1:
-	if((slave->Flags & 1) != 0)
-		goto AllocateMIDIChannel2;
+			// Have a channel.. check that it's host's slave isn't SI
+			if(slave->HCOffst == -1 ||
+				ite->chn[slave->HCOffst].SCOffst == (slave - &ite->slave[0]))
+			{
+				// Pop   DI
+				return AllocateChannelInstrument(ite, chn, slave, ins, ch);
+			}
+		}
 
-	// Have a channel.. check that it's host's slave isn't SI
-	if(slave->HCOffst == -1)
-		goto AllocateMIDIChannelFound;
-	if(ite->chn[slave->HCOffst].SCOffst == (slave - &ite->slave[0]))
-		goto AllocateMIDIChannelFound;
+		//Pop     DI
 
-AllocateMIDIChannel2:
-	slave++;
-	cx--;
-	if(cx != 0)
-		goto AllocateMIDIChannel1;
+	} else {
+		/*
+		It's about time this was documented.
+		These notes are by GM.
 
-	//Pop     DI
+		Step 1: Look for any channels that are "off".
+		*/
 
-	goto AllocateChannel17;
+		for(; cx != 0; cx--, slave++)
+		{
+			//printf("chnoff %i %i\n", (int)(slave - &ite->slave[0]), slave->Flags & 1);
+			if((slave->Flags & 1) == 0)
+				return AllocateChannelInstrument(ite, chn, slave, ins, ch);
+		}
+	}
 
-AllocateChannel10:
-	//printf("chnoff %i %i\n", (int)(slave - &ite->slave[0]), slave->Flags & 1);
-	/*
-	It's about time this was documented.
-	These notes are by GM.
-
-	Step 1: Look for any channels that are "off".
-	*/
-	if((slave->Flags & 1) == 0)
-		goto AllocateChannelInstrument;
-
-	slave++;
-	cx--;
-	if(cx != 0)
-		goto AllocateChannel10;
-
-AllocateChannel17:
 	/*
 	Step 2: TODO: Document this!
 	*/
 	// Common sample search
 	memset(ite->ChannelCountTable, 0, (100+200)); // Clear table
-	memset(ite->ChannelCountTable+100, 0xFF, (200));
-	memset(ite->ChannelCountTable+300, 0, 100); // Volumes
+	//memset(ite->ChannelCountTable+100, 0xFF, (200)); // FIXME: this doesn't even show up on the real thing --GM
+	memset(ite->ChannelCountTable+(100+200), 0xFF, (100)); // Volumes
 
 	cx = ite->AllocateNumChannels;
 	uint32_t ebx = 0;
 	it_slave *other = &ite->slave[ite->AllocateSlaveOffset];
 
-	for(; cx != -0; cx--, other++)
+	for(; cx != 0; cx--, other++)
 	{
 		// BX = sample pointer into table.
 		uint16_t bx = other->Smp;
@@ -1476,8 +1536,8 @@ AllocateChannel17:
 		ah = other->FV;
 
 		// Store location
-		ite->ChannelCountTable[100+bx+bx+0] = other - &ite->slave[0];
-		//ite->ChannelCountTable[100+bx+bx+1] = (other - &ite->slave[0])>>8;
+		ite->ChannelCountTable[100+bx+bx+0] = (other - &ite->slave[0])+1;
+		ite->ChannelCountTable[100+bx+bx+1] = ((other - &ite->slave[0])+1)>>8;
 
 		// Store volume
 		ite->ChannelCountTable[300+bx] = ah;
@@ -1486,7 +1546,7 @@ AllocateChannel17:
 	// OK.. now search table for maximum
 	// occurrence of sample...
 	uint16_t di = 0;
-	int16_t si = -1;
+	uint16_t si = 0;
 
 	// Find maximum count, has to be
 	// greater than 2 channels
@@ -1499,17 +1559,19 @@ AllocateChannel17:
 			continue;
 
 		ah = ite->ChannelCountTable[di];
-		si = (int8_t)ite->ChannelCountTable[di+di+100+0];
+		si = (uint16_t)(
+			(uint16_t)ite->ChannelCountTable[di+di+100+0]
+			+(((uint16_t)ite->ChannelCountTable[di+di+100+1])<<8));
 	}
 
 	// Pop     DI
 	// Pop     BX
 
 	//printf("ComS %i\n", si);
-	if(si != -1)
+	if(si != 0)
 	{
-		slave = &ite->slave[si];
-		goto AllocateChannelInstrument;
+		slave = &ite->slave[si-1];
+		return AllocateChannelInstrument(ite, chn, slave, ins, ch);
 	}
 
 	// Find out which host channel has the most
@@ -1529,101 +1591,144 @@ AllocateChannel17:
 		ite->ChannelCountTable[bx]++;
 	}
 
-AllocateChannelCountEnd:
-	// OK.. search through and find
-	// the most heavily used channel
-
-	// AH = channel count
-	// AL = channel
-	// 64 = physical channels
-
-	ah = 0x01;
-	al = 0x00;
-	bx = 0;
-	cx = 64;
-
-	for(; cx != 0; cx--, bx++)
+	for(;;)
 	{
-		if(ah >= ite->ChannelCountTable[bx])
-			continue;
+		// OK.. search through and find
+		// the most heavily used channel
 
-		ah = ite->ChannelCountTable[bx];
-		al = bx & 0xFF;
-	}
+		// AH = channel count
+		// AL = channel
+		// 64 = physical channels
 
-	// AH = channel to use.
-	// ^ don't you mean AL, Jeff? AH is the volume. --GM
-	if(ah <= 1)
-		goto AllocateChannelSoftestSearch;
+		ah = 0x01;
+		al = 0x00;
+		bx = 0;
+		cx = 64;
 
-	// Search for disowned only
-	al |= 0x80;
-
-	// actually BH --GM
-	uint8_t bh = chn->Smp-1;
-
-	cx = ite->AllocateNumChannels;
-	other = &ite->slave[ite->AllocateSlaveOffset];
-	it_slave *sither = &ite->slave[ite->AllocateSlaveOffset];
-	ah = 0xFF;
-
-	for(; cx != 0; other++, cx--)
-	{
-		if(al != other->HCN)
-			continue;
-
-		// Lower Volume?
-		if(ah <= other->FV)
-			continue;
-
-		// Now check if any other channel contains this sample
-		if(bh != other->Smp)
+		for(; cx != 0; cx--, bx++)
 		{
-			uint8_t bl = other->Smp;
-
-			other->Smp = 0xFF;
-
-			it_slave *subslave = &ite->slave[ite->AllocateSlaveOffset];
-			uint16_t subcx = ite->AllocateNumChannels;
-			int need_continue = 1;
-			for(; subcx != 0; subslave++, subcx--)
-			{
-				// might as well just leave that label in
-				if(bh == subslave->Smp)
-				{
-					need_continue = 0;
-					break;
-				}
-
-				// A second sample?
-				if(bl == subslave->Smp)
-				{
-					need_continue = 0;
-					break;
-				}
-			}
-
-			other->Smp = bl;
-			if(need_continue != 0)
+			if(ah >= ite->ChannelCountTable[bx])
 				continue;
 
-			//Pop     SI
-			//Pop     CX
+			ah = ite->ChannelCountTable[bx];
+			al = bx & 0xFF;
 		}
 
-		// OK found a second sample.
-		// get offset
-		si = other - &ite->slave[0];
+		// AH = channel to use.
+		// ^ don't you mean AL, Jeff? AH is the volume. --GM
+		//printf("AH=%02X AL=%02X BX=%04X CX=%04X\n", ah, al, bx, cx);
+		if(ah <= 1)
+		{
+			//Push    DI
 
-		// Get volume
-		ah = other->FV;
-	}
+			// Now search for softest
+			// disowned sample
+			// (not non-single)
 
-	if(si == -1)
-	{
+			cx = ite->AllocateNumChannels;
+			other = &ite->slave[ite->AllocateSlaveOffset];
+
+			// Offset
+			si = 0;
+			ah = 0xFF;
+
+			for(; cx != 0; cx--, other++)
+			{
+				if((other->HCN & 0x80) == 0)
+					continue; // No.. then look for next
+
+				// Volume set...
+				if(ah < other->FV)
+					continue;
+
+				// get offset.
+				si = other - &ite->slave[0];
+				si++;
+
+				// Get volume
+				ah = other->FV;
+			}
+
+			// Pop     DI
+
+			if(si != 0)
+				return AllocateChannelInstrument(ite, chn, slave, ins, ch);
+
+			printf("FAIL\n");
+			*ch &= ~4;
+			return NULL;
+		}
+
+		// Search for disowned only
+		al |= 0x80;
+
+		// actually BH --GM
+		uint8_t bh = chn->Smp-1;
+
+		cx = ite->AllocateNumChannels;
+		other = &ite->slave[ite->AllocateSlaveOffset];
+		it_slave *sither = &ite->slave[ite->AllocateSlaveOffset];
+		ah = 0xFF;
+
+		for(; cx != 0; other++, cx--)
+		{
+			if(al != other->HCN)
+				continue;
+
+			// Lower Volume?
+			if(ah <= other->FV)
+				continue;
+
+			// Now check if any other channel contains this sample
+			if(bh != other->Smp)
+			{
+				uint8_t bl = other->Smp;
+
+				other->Smp = 0xFF;
+
+				it_slave *subslave = &ite->slave[ite->AllocateSlaveOffset];
+				uint16_t subcx = ite->AllocateNumChannels;
+				int need_continue = 1;
+				for(; subcx != 0; subslave++, subcx--)
+				{
+					// might as well just leave that label in
+					if(bh == subslave->Smp)
+					{
+						need_continue = 0;
+						break;
+					}
+
+					// A second sample?
+					if(bl == subslave->Smp)
+					{
+						need_continue = 0;
+						break;
+					}
+				}
+
+				other->Smp = bl;
+				if(need_continue != 0)
+					continue;
+
+				//Pop     SI
+				//Pop     CX
+			}
+
+			// OK found a second sample.
+			// get offset
+			si = other - &ite->slave[0];
+			si++;
+
+			// Get volume
+			ah = other->FV;
+		}
+
+		if(si != 0)
+			break;
+
 		si = al & 0x3F;
 		ite->ChannelCountTable[si] = 0;
-		goto AllocateChannelCountEnd; // Next cycle...
+		// Next cycle...
 	}
 
 	//Push    DI
@@ -1650,6 +1755,7 @@ AllocateChannelCountEnd:
 
 		// get offset.
 		si = other - &ite->slave[0];
+		si++;
 
 		// Get volume
 		ah = other->FV;
@@ -1658,110 +1764,8 @@ AllocateChannelCountEnd:
 
 	//Pop     DI
 	//printf("SmpS %i\n", si);
-	slave = &ite->slave[si];
-	goto AllocateChannelInstrument;
-
-AllocateChannelSoftestSearch:
-	//Push    DI
-
-	// Now search for softest
-	// disowned sample
-	// (not non-single)
-
-	cx = ite->AllocateNumChannels;
-	other = &ite->slave[ite->AllocateSlaveOffset];
-
-	// Offset
-	si = -1;
-	ah = 0xFF;
-
-	for(; cx != 0; cx--, other++)
-	{
-		if((other->HCN & 0x80) == 0)
-			continue; // No.. then look for next
-
-		// Volume set...
-		if(ah < other->FV)
-			continue;
-
-		// get offset.
-		si = other - &ite->slave[0];
-
-		// Get volume
-		ah = other->FV;
-	}
-
-	// Pop     DI
-
-	if(si != -1)
-		goto AllocateChannelInstrument;
-
-	printf("FAIL\n");
-	*ch &= ~4;
-	return NULL;
-
-AllocateMIDIChannelFound:
-	//Pop     DI
-
-AllocateChannelInstrument:
-	chn->SCOffst = slave - &ite->slave[0];
-	printf("alloc %i %i %i\n", chn->HCN, (int)(chn - &ite->chn[0]), chn->SCOffst);
-
-	slave->HCN = chn->HCN;
-	slave->HCOffst = chn - &ite->chn[0];
-
-	// Reset vibrato info
-	slave->Bit = 0;
-	slave->ViP = 0;
-	slave->ViDepth = 0;
-
-	// Reset loop dirn
-	slave->LpD = 0;
-
-	InitPlayInstrument(ite, chn, slave, ins - &ite->ins[0]);
-
-	slave->SVl = ins->GbV;
-
-	//Pop     CX
-
-	// FadeOut, VolEnv&Pos
-	slave->FadeOut = 0x0400;
-
-	al = chn->Nte;
-	ah = chn->Ins;
-	if(chn->Smp == 101)
-		al = chn->Nt2;
-
-	slave->Nte = al;
-	slave->Ins = ah;
-
-	if(chn->Smp == 0)
-	{
-		slave->Flags = 0x200;
-		*ch &= ~4;
-		return NULL;
-	}
-
-	I_TagSample(ite, chn->Smp-1);
-	slave->Smp = chn->Smp-1;
-
-	// Sample memory offset.
-	slave->SmpOffs = chn->Smp-1;
-	it_sample *smp = &ite->smp[slave->SmpOffs];
-
-	if(smp->Length == 0 || (smp->Flg & 1) == 0)
-	{
-		// No sample!
-		slave->Flags = 0x200;
-		*ch &= ~4;
-		return NULL;
-	}
-
-	slave->Bit = (smp->Flg & 2);
-	slave->SVl = (smp->GvL * (uint16_t)slave->SVl) >> 6; // SI = 0->128
-	//printf("INS VOL %i SMP %i %i\n", slave->SVl, slave->Smp, chn->Smp);
-
-	return slave;
+	slave = &ite->slave[si-1];
+	return AllocateChannelInstrument(ite, chn, slave, ins, ch);
 }
 
 uint16_t Random(it_engine *ite)
@@ -3941,7 +3945,9 @@ void Music_Stop(it_engine *ite)
 	for(slave = &ite->slave[0], cx = MAXSLAVECHANNELS; cx != 0; cx--, slave++)
 	{
 		// too much bloody effort, using memset --GM
-		memset(slave, 0, 128);
+		//memset(slave, 0, 128);
+		memset(slave, 0, sizeof(it_slave));
+		slave->Flags = 0x0200;
 	}
 
 	ite->GlobalVolume = ite->hdr.GV;
