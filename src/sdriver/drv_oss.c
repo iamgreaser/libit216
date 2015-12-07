@@ -1,8 +1,4 @@
 /*
-This driver is by GreaseMonkey and is partly derived from the IT PC Speaker driver.
-
-Thus, the obligatory copyright notice:
-
 Copyright (C) 2014, Jeffrey Lim. All Rights Reserved.
 
 Redistribution and use in source and binary forms, with or without 
@@ -29,7 +25,6 @@ CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
 POSSIBILITY OF SUCH DAMAGE.
 */
-
 
 #include "it_struc.h"
 
@@ -73,11 +68,37 @@ static inline void kill_channel(it_engine *ite, it_slave *slave)
 		ite->chn[slave->HCN].Flags &= ~4;
 }
 
-static inline int update_offs(it_engine *ite, it_slave *slave, int32_t *offs, int32_t *oferr, int32_t *nfreq, int32_t lpbeg, int32_t lpend)
+static inline int update_offs(it_engine *ite, it_slave *slave, int32_t *offs, int32_t *oferr, int32_t *nfreq, const int32_t lpbeg, const int32_t lpend)
 {
+	// TODO: use the actual mixer code (it's faster than this approach)
+	// it's also possible that the ping pong stuff is completely broken now D:
+	// --GM
 	*oferr += *nfreq;
 	*offs += *oferr>>16;
 	*oferr &= 0xFFFF;
+
+	if((slave->LpM & 24) == 24 && slave->LpD != 0 && (*offs < lpbeg))
+	{
+		*offs = lpbeg - *offs;
+		if(lpend <= lpbeg)
+		{
+			// IT mixer doesn't kill here
+			// Temporary measure pending IT mixer port
+			kill_channel(ite, slave);
+			return 1;
+		}
+
+		*offs %= (lpend-lpbeg)*2;
+		if(*offs < (lpend-lpbeg))
+		{
+			slave->LpD = 0;
+			if(*nfreq < 0) *nfreq = -*nfreq;
+			*offs += lpbeg;
+		} else {
+			*offs = (lpend - lpbeg) - *offs;
+			*offs += lpend - 1;
+		}
+	}
 
 	if(*offs < 0)
 	{
@@ -103,12 +124,40 @@ static inline int update_offs(it_engine *ite, it_slave *slave, int32_t *offs, in
 
 		if((slave->LpM & 24) == 24)
 		{
-			*offs = lpend-1;
-			if(*nfreq > 0) *nfreq = -*nfreq;
-			slave->LpD = 1;
+			if(lpend <= lpbeg)
+			{
+				// IT mixer doesn't kill here
+				// Temporary measure pending IT mixer port
+				kill_channel(ite, slave);
+				return 1;
+			}
+
+			*offs -= lpend;
+			*offs %= (lpend-lpbeg)*2;
+			if(*offs >= (lpend-lpbeg))
+			{
+				*offs -= (lpend - lpbeg);
+				*offs += lpbeg;
+			} else {
+				slave->LpD = 1;
+
+				*offs = lpend - *offs - 1;
+
+				if(*nfreq > 0) *nfreq = -*nfreq;
+			}
 
 		} else {
-			*offs = lpbeg;
+			if(lpend <= lpbeg)
+			{
+				// IT mixer doesn't kill here
+				// Temporary measure pending IT mixer port
+				kill_channel(ite, slave);
+				return 1;
+			}
+
+			*offs -= lpend;
+			*offs %= (lpend-lpbeg);
+			*offs += lpbeg;
 		}
 	}
 

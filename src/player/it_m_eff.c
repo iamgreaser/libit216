@@ -1423,15 +1423,15 @@ void InitCommandW(it_engine *ite, it_host *chn)
 		chn->Flags |= 2;
 
 	} else if((chn->W00 & 0xF0) == 0xF0) {
-		if(ite->GlobalVolume >= (chn->CVal & 0x0F))
-			ite->GlobalVolume -= (chn->CVal & 0x0F);
+		if(ite->GlobalVolume >= (chn->W00 & 0x0F))
+			ite->GlobalVolume -= (chn->W00 & 0x0F);
 		else
 			ite->GlobalVolume = 0;
 
 		RecalculateAllVolumes(ite);
 
 	} else if((chn->W00 & 0x0F) == 0x0F) {
-		ite->GlobalVolume += (chn->CVal>>4);
+		ite->GlobalVolume += (chn->W00>>4);
 		if((ite->GlobalVolume & 0x80) != 0)
 			ite->GlobalVolume = 128;
 
