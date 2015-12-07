@@ -3352,7 +3352,7 @@ void UpdateInstruments16(it_engine *ite, it_slave *slave)
 		}
 
 	} else {
-		if((slave->Flags & 8) != 0) // Note fade??
+		if((slave->Flags & 8) == 0) // Note fade??
 		{
 			// Also apply fade if No vol env
 			// AND sustain off
