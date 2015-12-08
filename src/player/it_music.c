@@ -571,7 +571,7 @@ void RecalculateAllVolumes(it_engine *ite)
 
 void InitPlayInstrument(it_engine *ite, it_host *chn, it_slave *slave, int bx) // BX = instrument offset
 {
-	slave->InsOffs = bx-1; // InsOffset
+	slave->InsOffs = bx; // InsOffset
 	it_instrument *ins = &ite->ins[bx-1];
 
 	slave->NNA = ins->NNA;
@@ -706,7 +706,7 @@ void InitPlayInstrument(it_engine *ite, it_host *chn, it_slave *slave, int bx) /
 void ApplyRandomValues(it_engine *ite, it_host *chn)
 {
 	it_slave *slave = &ite->slave[chn->SCOffst];
-	it_instrument *ins = &ite->ins[slave->InsOffs];
+	it_instrument *ins = &ite->ins[slave->InsOffs-1];
 	
 	chn->Flags &= ~0x80;
 
@@ -3266,7 +3266,7 @@ void UpdateInstruments16(it_engine *ite, it_slave *slave)
 {
 	// Mov     CX, [SI]
 
-	it_instrument *ins = &ite->ins[slave->InsOffs];
+	it_instrument *ins = &ite->ins[slave->InsOffs-1];
 
 	if(slave->Ins == 0xFF) // No instrument?
 		return UpdateInstruments5(ite, slave);
@@ -4289,6 +4289,7 @@ int16_t Music_AssignSampleToInstrument(it_engine *ite, uint16_t bx)
 	// (returns -1 instead of carry on error --GM)
 
 	// Check for sample-number's instrument first.
+	// FIXME: probably an off-by-one here --GM
 	it_instrument *ins = &ite->ins[bx];
 
 	uint16_t ax = bx+1;
