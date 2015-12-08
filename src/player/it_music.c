@@ -597,7 +597,7 @@ void InitPlayInstrument(it_engine *ite, it_host *chn, it_slave *slave, int bx) /
 	// Check for sample pan
 	if(chn->Smp != 0)
 	{
-		it_sample *smp = &ite->smp[chn->Smp];
+		it_sample *smp = &ite->smp[chn->Smp-1];
 
 		if((smp->DfP & 0x80) != 0)
 			dl = smp->DfP & 0x7F;
