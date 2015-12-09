@@ -665,6 +665,8 @@ void InitCommandG11(it_engine *ite, it_host *chn)
 					|| oldsmp != chn->Smp) // Sample the same?
 				{
 					it_sample *smp = &ite->smp[chn->Smp-1];
+					// BUG HUNT: FIXME: masking in 0x7000 as well fixes stuck notes
+					// however this is NOT in the orignal player
 					slave->Flags = (slave->Flags & 0xFF) | 0x0100;
 
 					// Now to update sample info.
@@ -700,21 +702,22 @@ void InitCommandG11(it_engine *ite, it_host *chn)
 			slave->SVl = smp->GvL*2;
 
 			skipnote = 1;
-			if((ite->hdr.Flags & 4) != 0) // Instrument/sample mode?
-			{
-				// Now for instruments
-				slave->FadeOut = 0x0400;
-				it_instrument *ins = &ite->ins[chn->Ins-1];
+		}
 
-				uint16_t oldflags = slave->Flags;
+		if((ite->hdr.Flags & 4) != 0) // Instrument/sample mode?
+		{
+			// Now for instruments
+			slave->FadeOut = 0x0400;
+			it_instrument *ins = &ite->ins[chn->Ins-1];
 
-				InitPlayInstrument(ite, chn, slave, chn->Ins);
+			uint16_t oldflags = slave->Flags;
 
-				if((oldflags & 1) != 0)
-					slave->Flags &= ~0x100;
+			InitPlayInstrument(ite, chn, slave, chn->Ins);
 
-				slave->SVl = ((uint16_t)ins->GbV * (uint16_t)slave->SVl)>>7;
-			}
+			if((oldflags & 1) != 0)
+				slave->Flags &= ~0x100;
+
+			slave->SVl = ((uint16_t)ins->GbV * (uint16_t)slave->SVl)>>7;
 		}
 	}
 
@@ -1194,7 +1197,8 @@ void InitCommandS(it_engine *ite, it_host *chn)
 
 				return;
 
-			case 0x7: // Set volume envelope on
+				// the comments are backwards here so I've fixed them --GM
+			case 0x7: // Set volume envelope off
 				InitNoCommand(ite, chn);
 
 				if((chn->Flags & 4) != 0)
@@ -1205,7 +1209,7 @@ void InitCommandS(it_engine *ite, it_host *chn)
 
 				return;
 
-			case 0x8: // Set volume envelope off
+			case 0x8: // Set volume envelope on
 				InitNoCommand(ite, chn);
 
 				if((chn->Flags & 4) != 0)
@@ -1216,7 +1220,7 @@ void InitCommandS(it_engine *ite, it_host *chn)
 
 				return;
 
-			case 0x9: // Set panning envelope on
+			case 0x9: // Set panning envelope off
 				InitNoCommand(ite, chn);
 
 				if((chn->Flags & 4) != 0)
@@ -1226,7 +1230,7 @@ void InitCommandS(it_engine *ite, it_host *chn)
 				}
 				break;
 
-			case 0xA: // Set panning envelope off
+			case 0xA: // Set panning envelope on
 				InitNoCommand(ite, chn);
 
 				if((chn->Flags & 4) != 0)
@@ -1236,7 +1240,7 @@ void InitCommandS(it_engine *ite, it_host *chn)
 				}
 				break;
 
-			case 0xB: // Set pitch envelope on
+			case 0xB: // Set pitch envelope off
 				InitNoCommand(ite, chn);
 
 				if((chn->Flags & 4) != 0)
@@ -1246,7 +1250,7 @@ void InitCommandS(it_engine *ite, it_host *chn)
 				}
 				break;
 
-			case 0xC: // Set pitch envelope off
+			case 0xC: // Set pitch envelope on
 				InitNoCommand(ite, chn);
 
 				if((chn->Flags & 4) != 0)

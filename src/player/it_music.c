@@ -1166,7 +1166,7 @@ it_slave *AllocateChannelInstrument(it_engine *ite, it_host *chn, it_slave *slav
 	it_instrument *ins, uint8_t *ch)
 {
 	chn->SCOffst = slave - &ite->slave[0];
-	printf("alloc %i %i %i\n", chn->HCN, (int)(chn - &ite->chn[0]), chn->SCOffst);
+	printf("alloc %i %i %i %i\n", chn->HCN, (int)(chn - &ite->chn[0]), chn->SCOffst, (int)(ins - &ite->ins[0]));
 
 	slave->HCN = chn->HCN;
 	slave->HCOffst = chn - &ite->chn[0];
@@ -3272,6 +3272,8 @@ void UpdateInstruments16(it_engine *ite, it_slave *slave)
 		return UpdateInstruments5(ite, slave);
 	
 	uint16_t bp = (slave->Flags & 4); // BP = sustain for envelope calls
+
+	//printf("InsOffs %i %i %i %04X\n", slave->InsOffs, slave->Ins, bp, slave->Flags);
 
 	if((slave->Flags & 0x4000) != 0)
 		if(UpdateEnvelope(ite, &slave->Pt, &ins->PitchEnv, bp) != 0)

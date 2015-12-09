@@ -218,7 +218,6 @@ static int drv_oss_DriverPoll(it_engine *ite, uint16_t PlayMode, uint16_t Curren
 			int32_t lpend = (int32_t)slave->Loop_End;
 			int32_t nfreq = (int32_t)slave->Frequency;
 
-			// TODO: stereo
 			int32_t vol = slave->_16bVol;
 			vol *= ite->hdr.MV;
 			vol >>= 8;
@@ -245,8 +244,6 @@ static int drv_oss_DriverPoll(it_engine *ite, uint16_t PlayMode, uint16_t Curren
 
 			//lpend = 10000;
 			
-			// TODO: ping-pong loops
-			// TODO: stereo
 			if(ite->SamplePointer[slave->Smp] == NULL)
 			{
 				kill_channel(ite, slave);
