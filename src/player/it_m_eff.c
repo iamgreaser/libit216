@@ -642,31 +642,41 @@ void InitCommandG(it_engine *ite, it_host *chn)
 
 void InitCommandG11(it_engine *ite, it_host *chn)
 {
+	// added some flow comments because, well, the flow is weird --GM
+
 	// Jumped to from Lxx
 	it_slave *slave = &ite->slave[chn->SCOffst];
 
 	int skipnote = 0;
 
-	if((chn->Msk & 0x22) != 0 && (chn->Smp != 0))
+	if((chn->Msk & 0x22) != 0 && (chn->Smp != 0)) // false -> G13
 	{
+		int has_g18 = 0;
 		// Checking for change of Sample or instrument.
-		if((ite->hdr.Flags & 0x20) == 0)
+		if((ite->hdr.Flags & 0x20) == 0) // false -> GXXCompat1
 		{
 			// Don't overwrite note if MIDI!
-			if(chn->Smp != 101)
+			if(chn->Smp != 101) // false -> G13
 			{
-				// Ins the same?
-
 				uint8_t oldsmp = slave->Smp;
 				uint8_t oldins = slave->Ins;
 				slave->Nte = chn->Nte;
 				slave->Ins = chn->Ins;
-				if(oldins != chn->Ins // Ins the same?
-					|| oldsmp != chn->Smp) // Sample the same?
+
+				/*
+				flow here is kinda odd:
+
+				INS SMP
+				 =   =  -> G13
+				 !   =  -> G18
+				 =   !  -> G16
+				 !   !  -> G16
+				*/
+
+				if(oldsmp != chn->Smp-1) // Sample the same?
 				{
+					// G16
 					it_sample *smp = &ite->smp[chn->Smp-1];
-					// BUG HUNT: FIXME: masking in 0x7000 as well fixes stuck notes
-					// however this is NOT in the orignal player
 					slave->Flags = (slave->Flags & 0xFF) | 0x0100;
 
 					// Now to update sample info.
@@ -692,41 +702,59 @@ void InitCommandG11(it_engine *ite, it_host *chn)
 					slave->Bit = (smp->Flg & 2);
 
 					GetLoopInformation(ite, slave);
+
+					// follow onto G18
+					has_g18 = 1;
+				} else if(oldins != chn->Ins) { // Ins the same?
+					// follow onto G18
+					has_g18 = 1;
 				}
 			}
 
 		} else {
+			// GXXCompat1
 			chn->Smp = slave->Smp+1;
 
 			it_sample *smp = &ite->smp[slave->Smp];
 			slave->SVl = smp->GvL*2;
 
-			skipnote = 1;
+			// follow onto G18
+			has_g18 = 1;
 		}
 
-		if((ite->hdr.Flags & 4) != 0) // Instrument/sample mode?
+		// G18
+		if(has_g18)
 		{
-			// Now for instruments
-			slave->FadeOut = 0x0400;
-			it_instrument *ins = &ite->ins[chn->Ins-1];
+			if((ite->hdr.Flags & 4) != 0) // Instrument/sample mode?
+				// false -> G14
+			{
+				// Now for instruments
+				slave->FadeOut = 0x0400;
+				it_instrument *ins = &ite->ins[chn->Ins-1];
 
-			uint16_t oldflags = slave->Flags;
+				uint16_t oldflags = slave->Flags;
 
-			InitPlayInstrument(ite, chn, slave, chn->Ins);
+				InitPlayInstrument(ite, chn, slave, chn->Ins);
 
-			if((oldflags & 1) != 0)
-				slave->Flags &= ~0x100;
+				if((oldflags & 1) != 0)
+					slave->Flags &= ~0x100;
 
-			slave->SVl = ((uint16_t)ins->GbV * (uint16_t)slave->SVl)>>7;
+				slave->SVl = ((uint16_t)ins->GbV * (uint16_t)slave->SVl)>>7;
+				// follow onto G14
+			}
+
+			skipnote = 1; // -> G14 common jump
 		}
 	}
 
-	if((skipnote != 0) || (chn->Msk & 0x11) != 0)
+	// G13 (refers to the actual mask condition)
+	if((skipnote != 0) || (chn->Msk & 0x11) != 0) // false -> G1
 	{
+		// G14
 		// OK. Time to calc freq.
-		if(chn->Nt2 > 119)
+		if(chn->Nt2 > 119) // false -> G5
 		{
-			if((chn->Flags & 4) != 0)
+			if((chn->Flags & 4) != 0) // false -> G1
 			{
 				if(chn->Nt2 > 0xFE)
 				{ 
