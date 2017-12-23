@@ -28,33 +28,80 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "it_struc.h"
 
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/soundcard.h>
+#include <SDL.h>
 
 static it_drvdata drv;
 static int is_initialised = 0;
 static int tempo = 125;
-static int ossfmt = AFMT_S16_LE;
+static SDL_AudioSpec sdl_aspec;
 static int freq = 44100;
 static int stereo = 1;
 static int tper = 882;
-static int dsp = -1;
 static int32_t mixbuf[44100*2];
-static int16_t outbuf[44100*2];
+//static int16_t outbuf[44100*2];
+#define OUTSIZE 32768
+static const int outsize = OUTSIZE;
+static int16_t outring[OUTSIZE][2];
+static volatile int outoffs_r = 0;
+static volatile int outoffs_w = 0;
 
-static const char *drv_oss_DriverDetectCard(it_engine *ite, const char *dname, uint16_t AL, uint16_t version)
+void poll_audio_sdl(void *ud, Uint8 *stream, int len)
+{
+	int i;
+	int real_len = len/4;
+	int16_t *real_out = (int16_t *)stream;
+
+	int ooffs = outoffs_r;
+	int olen = (outoffs_w - ooffs);
+	if(olen < 0) {
+		olen += outsize;
+	}
+	//printf("olen = %d / real_len = %d\n", olen, real_len);
+	for(i = 0; i < real_len && olen > 0; i++) {
+		real_out[i*2+0] = outring[ooffs][0];
+		real_out[i*2+1] = outring[ooffs][1];
+		ooffs += 1;
+		olen -= 1;
+		if(ooffs >= outsize) {
+			ooffs -= outsize;
+		}
+	}
+	outoffs_r = ooffs;
+
+	for(; i < real_len; i++) {
+		real_out[i*2+0] = 0;
+		real_out[i*2+1] = 0;
+	}
+}
+
+static const char *drv_sdl_DriverDetectCard(it_engine *ite, const char *dname, uint16_t AL, uint16_t version)
 {
 	return NULL;
 }
 
-static const char *drv_oss_DriverInitSound(it_engine *ite)
+static const char *drv_sdl_DriverInitSound(it_engine *ite)
 {
+	if(SDL_Init(SDL_INIT_AUDIO)) {
+		return "Audio init failed";
+	}
+
+	sdl_aspec.freq = freq;
+	sdl_aspec.format = AUDIO_S16SYS;
+	sdl_aspec.channels = (stereo ? 2 : 1);
+	sdl_aspec.samples = 4096;
+	sdl_aspec.callback = poll_audio_sdl;
+
+	if(SDL_OpenAudio(&sdl_aspec, NULL)) {
+		return "Audio open failed";
+	}
+
+	SDL_PauseAudio(0);
 	return NULL;
 }
 
-int drv_oss_DriverUninitSound(it_engine *ite)
+int drv_sdl_DriverUninitSound(it_engine *ite)
 {
+	SDL_Quit();
 	return 0;
 }
 
@@ -71,7 +118,7 @@ static inline void kill_channel(it_engine *ite, it_slave *slave)
 static inline int update_offs(it_engine *ite, it_slave *slave, int32_t *offs, int32_t *oferr, int32_t *nfreq, const int32_t lpbeg, const int32_t lpend)
 {
 	// TODO: use the actual mixer code (it's faster than this approach)
-	// it's also possible that the ping pong stuff is completely broken now D:
+	// it's also psdlible that the ping pong stuff is completely broken now D:
 	// --GM
 	*oferr += *nfreq;
 	*offs += *oferr>>16;
@@ -171,7 +218,7 @@ static inline int update_offs(it_engine *ite, it_slave *slave, int32_t *offs, in
 
 }
 
-static int drv_oss_DriverPoll(it_engine *ite, uint16_t PlayMode, uint16_t CurrentPattern)
+static int drv_sdl_DriverPoll(it_engine *ite, uint16_t PlayMode, uint16_t CurrentPattern)
 {
 	it_host *chn;
 	it_slave *slave;
@@ -188,20 +235,8 @@ static int drv_oss_DriverPoll(it_engine *ite, uint16_t PlayMode, uint16_t Curren
 	int tsleep = (1000000*10)/(tempo*4);
 	tper = (freq*10)/(tempo*4);
 
-	if(dsp == -1)
-	{
-		dsp = open("/dev/dsp", O_WRONLY);
-		assert(dsp > 2);
-		ioctl(dsp, SNDCTL_DSP_SETFMT, &ossfmt);
-		assert(ossfmt == AFMT_S16_LE);
-		ioctl(dsp, SNDCTL_DSP_SPEED, &freq);
-		ioctl(dsp, SNDCTL_DSP_STEREO, &stereo);
-		printf("OSS opened: fmt=%i, freq=%i, chns=%i\n", ossfmt, freq,
-			(stereo ? 2 : 1));
-	}
-
 	memset(mixbuf, 0, tper*(stereo ? 2 : 1)*4);
-	memset(outbuf, 0, tper*(stereo ? 2 : 1)*2);
+	//memset(outbuf, 0, tper*(stereo ? 2 : 1)*2);
 
 	for(i = 0; i < ite->NumChannels; i++)
 	{
@@ -321,55 +356,94 @@ static int drv_oss_DriverPoll(it_engine *ite, uint16_t PlayMode, uint16_t Curren
 	}
 	//printf("\n");
 
-	for(i = 0; i < tper*(stereo != 0 ? 2 : 1); i++)
+	//SDL_LockAudio();
+	if(stereo)
 	{
-		int32_t v = mixbuf[i];
+		//printf("per = %d / space: %d\n", tper, (outoffs_w - outoffs_r + outsize) % outsize);
+		for(i = 0; i < tper*2; i += 2)
+		{
+			int32_t v0 = mixbuf[i+0];
+			int32_t v1 = mixbuf[i+1];
 
-		if(v >  0x7FFF) v =  0x7FFF;
-		if(v < -0x7FFF) v = -0x7FFF;
+			if(v0 >  0x7FFF) v0 =  0x7FFF;
+			if(v0 < -0x7FFF) v0 = -0x7FFF;
+			if(v1 >  0x7FFF) v1 =  0x7FFF;
+			if(v1 < -0x7FFF) v1 = -0x7FFF;
 
-		outbuf[i] = v;
+			int old_outw = outoffs_w;
+			int new_outw = (old_outw + 1) % outsize;
+			while(outoffs_r == new_outw) {
+				//SDL_UnlockAudio();
+				SDL_Delay(10);
+				//SDL_LockAudio();
+			}
+			outring[old_outw][0] = v0;
+			outring[old_outw][1] = v1;
+			outoffs_w = new_outw;
+		}
+
+	} else {
+		for(i = 0; i < tper*1; i += 1)
+		{
+			int32_t v0 = mixbuf[i+0];
+			int32_t v1 = mixbuf[i+0];
+
+			if(v0 >  0x7FFF) v0 =  0x7FFF;
+			if(v0 < -0x7FFF) v0 = -0x7FFF;
+			if(v1 >  0x7FFF) v1 =  0x7FFF;
+			if(v1 < -0x7FFF) v1 = -0x7FFF;
+
+			int old_outw = outoffs_w;
+			int new_outw = (old_outw + 1) % outsize;
+			while(outoffs_r == new_outw) {
+				//SDL_UnlockAudio();
+				SDL_Delay(10);
+				//SDL_LockAudio();
+			}
+			outring[old_outw][0] = v0;
+			outring[old_outw][1] = v1;
+			outoffs_w = new_outw;
+		}
 	}
-
-	write(dsp, outbuf, tper*2*(stereo != 0 ? 2 : 1));
-	//usleep(tsleep);
+	//SDL_UnlockAudio();
+	//usleep(1000);
 	return 0;
 }
 
-static int drv_oss_DriverSetTempo(it_engine *ite, uint16_t Tempo)
+static int drv_sdl_DriverSetTempo(it_engine *ite, uint16_t Tempo)
 {
 	printf("tempo %i\n", Tempo);
 	tempo = Tempo;
 	return 0;
 }
 
-static int drv_oss_DriverSetMixVolume(it_engine *ite, uint16_t MixVolume)
+static int drv_sdl_DriverSetMixVolume(it_engine *ite, uint16_t MixVolume)
 {
 	return 0;
 }
 
-static int drv_oss_DriverSetStereo(it_engine *ite, uint16_t Stereo)
+static int drv_sdl_DriverSetStereo(it_engine *ite, uint16_t Stereo)
 {
 	return 0;
 }
 
-static int drv_oss_DriverReleaseSample(it_engine *ite, it_sample *smp)
+static int drv_sdl_DriverReleaseSample(it_engine *ite, it_sample *smp)
 {
 	return 0;
 }
 
-static int drv_oss_DriverMIDIOut(it_engine *ite, uint8_t al)
+static int drv_sdl_DriverMIDIOut(it_engine *ite, uint8_t al)
 {
 	printf("MIDI %02X\n", al);
 	return 0;
 }
 
-static int drv_oss_DriverGetWaveform(it_engine *ite)
+static int drv_sdl_DriverGetWaveform(it_engine *ite)
 {
 	return 0;
 }
 
-it_drvdata *drv_oss_init(it_engine *ite)
+it_drvdata *drv_sdl_init(it_engine *ite)
 {
 	if(is_initialised)
 		return &drv;
@@ -389,20 +463,20 @@ it_drvdata *drv_oss_init(it_engine *ite)
 	drv.DriverFlags = 0; // no midi out, no hiqual (at least for now)
 	// both do appear to be supported however (well, to some extent)
 
-	drv.DriverDetectCard = drv_oss_DriverDetectCard;
-	drv.DriverInitSound = drv_oss_DriverInitSound;
+	drv.DriverDetectCard = drv_sdl_DriverDetectCard;
+	drv.DriverInitSound = drv_sdl_DriverInitSound;
 
-	drv.DriverUninitSound = drv_oss_DriverUninitSound;
+	drv.DriverUninitSound = drv_sdl_DriverUninitSound;
 
-	drv.DriverPoll = drv_oss_DriverPoll;
-	drv.DriverSetTempo = drv_oss_DriverSetTempo;
-	drv.DriverSetMixVolume = drv_oss_DriverSetMixVolume;
-	drv.DriverSetStereo = drv_oss_DriverSetStereo;
+	drv.DriverPoll = drv_sdl_DriverPoll;
+	drv.DriverSetTempo = drv_sdl_DriverSetTempo;
+	drv.DriverSetMixVolume = drv_sdl_DriverSetMixVolume;
+	drv.DriverSetStereo = drv_sdl_DriverSetStereo;
 
-	drv.DriverReleaseSample = drv_oss_DriverReleaseSample;
+	drv.DriverReleaseSample = drv_sdl_DriverReleaseSample;
 
-	drv.DriverMIDIOut = drv_oss_DriverMIDIOut;
-	drv.DriverGetWaveform = drv_oss_DriverGetWaveform;
+	drv.DriverMIDIOut = drv_sdl_DriverMIDIOut;
+	drv.DriverGetWaveform = drv_sdl_DriverGetWaveform;
 
 	return &drv;
 }

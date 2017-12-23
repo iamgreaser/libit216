@@ -52,6 +52,7 @@ it_engine *ITEngineNew()
 }
 
 it_drvdata *drv_oss_init(it_engine *ite);
+it_drvdata *drv_sdl_init(it_engine *ite);
 
 it_drvdata *DriverSys_GetByName(it_engine *ite, const char *fname)
 {
@@ -59,6 +60,8 @@ it_drvdata *DriverSys_GetByName(it_engine *ite, const char *fname)
 
 	if(!strcmp(fname, "oss"))
 		return drv_oss_init(ite);
+	if(!strcmp(fname, "sdl"))
+		return drv_sdl_init(ite);
 	
 	return NULL;
 }
@@ -308,17 +311,17 @@ const uint16_t DriverSoundCard[] = {
 const char *DriverNameTable[] = {
 	NULL,
 	"oss",
-	// I hope to get SDL audio working at some point.
+	"sdl", // (DONE) I hope to get SDL audio working at some point.
 	// Possibly also a winmm driver for Windows.
 	// JACK will definitely be there, too! Will use ezjack for that.
 };
 
 const uint16_t DriverDetectionOrder[] = {
-	1, 0xFFFF,
+	2, 1, 0, 0xFFFF,
 };
 
 const uint16_t DriverSoundCard[] = {
-	0, 1,
+	0, 0, 1,
 	0xFFFF,
 };
 #endif

@@ -19,6 +19,7 @@ OBJS_PLAYER = \
 	$(OBJDIR_PLAYER)/player/it_music.o \
 	$(OBJDIR_PLAYER)/player/it_m_eff.o \
 	\
+	$(OBJDIR_PLAYER)/sdriver/drv_sdl.o \
 	$(OBJDIR_PLAYER)/sdriver/drv_oss.o \
 	\
 	$(OBJDIR_PLAYER)/player.o
@@ -28,6 +29,7 @@ OBJS_EDITOR = \
 	$(OBJDIR_EDITOR)/player/it_music.o \
 	$(OBJDIR_EDITOR)/player/it_m_eff.o \
 	\
+	$(OBJDIR_PLAYER)/sdriver/drv_sdl.o \
 	$(OBJDIR_EDITOR)/sdriver/drv_oss.o \
 	\
 	$(OBJDIR_EDITOR)/ui/it_m.o \
