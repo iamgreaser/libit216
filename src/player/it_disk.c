@@ -363,7 +363,7 @@ int D_LoadSampleData(it_engine *ite, FILE *fp, uint16_t ax)
 	uint16_t si = 0;
 
 	uint8_t *srcdata = data;
-	for(; edi >= 0; edi -= 32768)
+	for(; edi > 0; edi -= 32768)
 	{
 		uint32_t ecx;
 		int is8bit;
@@ -425,6 +425,8 @@ int D_LoadSampleData(it_engine *ite, FILE *fp, uint16_t ax)
 				D_Decompress8BitData(srcdata, packed_data, buflen); // 8 bit decode.
 			else
 				D_Decompress16BitData((uint16_t *)srcdata, packed_data, buflen); // 16 bit decode
+
+			si = 0;
 		}
 
 		// flag skipped if sample compressed
