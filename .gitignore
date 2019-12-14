@@ -1,0 +1,13 @@
+# Output
+itedit
+itplay
+
+# Source files
+*.it
+
+# VIM
+.sw?
+.*.sw?
+
+# Other crap
+*~
