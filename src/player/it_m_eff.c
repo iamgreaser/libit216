@@ -1172,7 +1172,11 @@ void InitCommandS(it_engine *ite, it_host *chn)
 			break;
 
 		case 0x5: // 5 - set panbrello waveform
-			if(al <= 3) chn->PWF = al;
+			if(al <= 3)
+			{
+				chn->PWF = al;
+				chn->PPo = 0;
+			}
 			break;
 
 		case 0x6: // 6 - extra delay of x frames

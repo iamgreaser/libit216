@@ -1775,15 +1775,16 @@ uint16_t Random(it_engine *ite)
 	uint16_t bx = ite->Seed2;
 	uint16_t cx = bx;
 	uint16_t dx = bx;
+	uint8_t cl = cx & 15;
 
 	ax += bx;
-	ax = (ax<<(cx&15)) | (ax>>(15-(cx&15)));
+	ax = (ax<<cl) | (ax>>((16-cl)&15));
 	ax ^= dx;
 	cx = (cx>>8)|(cx<<8);
 	bx += cx;
 	dx += bx;
 	cx += ax;
-	ax -= dx - ((bx&1) != 0 ? 1 : 0); // SBB - TODO: confirm I have this right!
+	ax -= dx + (bx&1);
 	bx = (bx>>1) | (bx<<15);
 	ite->Seed2 = dx;
 	ite->Seed1 = ax;
