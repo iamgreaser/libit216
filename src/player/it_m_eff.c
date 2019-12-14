@@ -1,28 +1,28 @@
 /*
 Copyright (C) 2014, Jeffrey Lim. All Rights Reserved.
 
-Redistribution and use in source and binary forms, with or without 
+Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
-1. Redistributions of source code must retain the above copyright notice, 
+1. Redistributions of source code must retain the above copyright notice,
    this list of conditions and the following disclaimer.
 
-2. Redistributions in binary form must reproduce the above copyright notice, 
+2. Redistributions in binary form must reproduce the above copyright notice,
    this list of conditions and the following disclaimer in the documentation
    and/or other materials provided with the distribution.
 
 3. The name of the author may not be used to endorse or promote products
    derived from this software without specific prior written permission.
 
-THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, 
-INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND 
-FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR 
-BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
-SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
-INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
-CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
-ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
+THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
+INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR
+BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 */
 
@@ -139,7 +139,7 @@ void InitVolumeEffect(it_engine *ite, it_host *chn) // Done A, B, H
 		}
 	}
 
-	if((chn->Flags & 0x04) != 0) 
+	if((chn->Flags & 0x04) != 0)
 	{
 		// Channel not on!
 		// TODO: work out what this comment means and which it applies to
@@ -188,7 +188,7 @@ void InitVolumeEffectH(it_engine *ite, it_host *chn, uint8_t ah)
 	ah <<= 2;
 	if(ah != 0)
 		chn->VDp = ah;
-	
+
 	if((chn->Flags & 4) != 0)
 		InitVibrato(ite, chn);
 }
@@ -378,7 +378,7 @@ InitNoCommand1:
 	// Instrument mode and old effects?
 	if((ite->hdr.Flags & 0x14) != 0x14)
 		goto NoOldEffect;
-	
+
 	if(cl & 0x22)
 		goto NoOldEffect;
 
@@ -421,7 +421,7 @@ InitNoCommand7:
 InitNoCommand8:
 	if((ch & 4) == 0)
 		goto InitNoCommand3;
-	
+
 	slave = &ite->slave[chn->SCOffst];
 
 	slave->Vol = slave->VS = chn->VSe;
@@ -462,7 +462,7 @@ void InitCommandB(it_engine *ite, it_host *chn)
 
 	if(ax < ite->CurrentOrder)
 		ite->StopSong = 1;
-	
+
 	ax--;
 	ite->ProcessOrder = ax;
 	ite->ProcessRow = 0xFFFE;
@@ -757,7 +757,7 @@ void InitCommandG11(it_engine *ite, it_host *chn)
 			if((chn->Flags & 4) != 0) // false -> G1
 			{
 				if(chn->Nt2 > 0xFE)
-				{ 
+				{
 					// Note off
 					slave->Flags |= 4;
 					GetLoopInformation(ite, slave);
@@ -1452,7 +1452,7 @@ void InitCommandW(it_engine *ite, it_host *chn)
 	if(chn->W00 == 0)
 	{
 		return;
-	
+
 	} else if((chn->W00 & 0xF0) == 0) {
 		chn->_40 = (chn->_40 & 0xFF00) | (0xFF & (int16_t)(-chn->W00));
 		chn->Flags |= 2;
@@ -2046,7 +2046,7 @@ void CommandR2(it_engine *ite, it_host *chn, it_slave *slave, int8_t al)
 	ax >>= 8;
 
 	al = slave->Vol + ax;
-	
+
 	if((al & 0x80) != 0)
 		al = 0;
 	if(al > 64)
@@ -2135,7 +2135,7 @@ void CommandW(it_engine *ite, it_host *chn)
 
 	if((ax & 0x8000) != 0)
 		ax = 0;
-	
+
 	if((ax & 0xFF) > 128)
 		ax = 128;
 

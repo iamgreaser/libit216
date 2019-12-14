@@ -1,28 +1,28 @@
 /*
 Copyright (C) 2014, Jeffrey Lim. All Rights Reserved.
 
-Redistribution and use in source and binary forms, with or without 
+Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
-1. Redistributions of source code must retain the above copyright notice, 
+1. Redistributions of source code must retain the above copyright notice,
    this list of conditions and the following disclaimer.
 
-2. Redistributions in binary form must reproduce the above copyright notice, 
+2. Redistributions in binary form must reproduce the above copyright notice,
    this list of conditions and the following disclaimer in the documentation
    and/or other materials provided with the distribution.
 
 3. The name of the author may not be used to endorse or promote products
    derived from this software without specific prior written permission.
 
-THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, 
-INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND 
-FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR 
-BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
-SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
-INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
-CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
-ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
+THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
+INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR
+BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 */
 
@@ -62,7 +62,7 @@ it_drvdata *DriverSys_GetByName(it_engine *ite, const char *fname)
 		return drv_oss_init(ite);
 	if(!strcmp(fname, "sdl"))
 		return drv_sdl_init(ite);
-	
+
 	return NULL;
 }
 
@@ -210,8 +210,8 @@ uint8_t SampleHeader[80] = {
 	'I', 'M', 'P', 'S',
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	64, 0, 64,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	(8363&0xFF), (8363>>8), 0, 0,
 	0, 0, 0, 0,
 	0, 0, 0, 0,
@@ -615,7 +615,7 @@ void InitPlayInstrument(it_engine *ite, it_host *chn, it_slave *slave, int bx) /
 		ax >>= 3;
 		ax += dl;
 
-		if(ax < 0) 
+		if(ax < 0)
 			ax = 0;
 		else if(ax > 64)
 			ax = 64;
@@ -710,7 +710,7 @@ void ApplyRandomValues(it_engine *ite, it_host *chn)
 {
 	it_slave *slave = &ite->slave[chn->SCOffst];
 	it_instrument *ins = &ite->ins[slave->InsOffs-1];
-	
+
 	chn->Flags &= ~0x80;
 
 	int8_t al = Random(ite); // AL = -128->+127
@@ -1284,7 +1284,7 @@ it_slave *AllocateChannel(it_engine *ite, it_host *chn, uint8_t *ch)
 
 	if(slave->NNA == 0)
 		goto AllocateChannel20; // Notecut.
-	
+
 	//printf("FUCK\n"); // Might not be properly handled
 
 	// Disown channel
@@ -1364,7 +1364,7 @@ AllocateChannel8:
 	al = ins->DCT;
 	if(al == 0)
 		goto AllocateChannel4; // Duplicate check off.
-	
+
 	//printf("MEGA FUCK\n"); // TODO: Verify - Even more likely to break! --GM
 
 AllocateChannel11:
@@ -2025,7 +2025,7 @@ int Music_GetWaveForm(it_engine *ite)
 	// TODO: work out exactly what to do
 	if((ite->d.DriverFlags & 4) == 0)
 		return -1;
-	
+
 	// TODO: find out the arguments for this
 	return ite->d.DriverGetWaveform(ite);
 }
@@ -2816,7 +2816,7 @@ void UpdateNoteData(it_engine *ite)
 			chn->Flags &= ~(3+32+64+256); // Turn off all calling...
 
 			uint8_t al;
-			al = *(data++); 
+			al = *(data++);
 			if(al != NONOTE)
 			{
 				chn->Nte = al;
@@ -2956,7 +2956,7 @@ void Update(it_engine *ite, uint16_t *rcx, it_slave **si, uint16_t *ax)
 	} else {
 		UpdateSamples(ite);
 	}
-	
+
 	*rcx = ite->NumChannels;
 	*si = &ite->slave[0];
 	*ax = ite->PlayMode;
@@ -3152,7 +3152,7 @@ void UpdateMIDI(it_engine *ite)
 		chn = &ite->chn[slave->HCOffst];
 
 		MIDITranslate(ite, chn, slave, MIDICOMMAND_STOPNOTE);
-		
+
 		if((slave->HCN & 0x80) != 0) continue;
 
 		slave->HCN |= 0x80;
@@ -3274,7 +3274,7 @@ void UpdateInstruments16(it_engine *ite, it_slave *slave)
 
 	if(slave->Ins == 0xFF) // No instrument?
 		return UpdateInstruments5(ite, slave);
-	
+
 	uint16_t bp = (slave->Flags & 4); // BP = sustain for envelope calls
 
 	//printf("InsOffs %i %i %i %04X\n", slave->InsOffs, slave->Ins, bp, slave->Flags);
@@ -3284,7 +3284,7 @@ void UpdateInstruments16(it_engine *ite, it_slave *slave)
 			slave->Flags &= ~0x4000;
 
 	int do_filter = ((ins->PitchEnv.Flg & 0x80) != 0);
-	
+
 	if(do_filter && slave->Smp != 100)
 	{
 		int16_t fval = (slave->Pt.EnvelopeValue>>8);
@@ -3934,9 +3934,9 @@ void Music_Stop(it_engine *ite)
 		chn->HCN = dh; chn->CUC = 0; chn->VSe = 0; chn->LTr = 0;
 		chn->SCOffst = 0; chn->PLR = 0; chn->PLC = 0;
 		chn->PWF = 0; chn->PPo = 0; chn->PDp = 0; chn->PSp = 0;
-		chn->LPn = 0; chn->LVi = 0; 
+		chn->LPn = 0; chn->LVi = 0;
 		chn->CP = ite->hdr.Chnl_Pan[dh] & 0x7F; chn->CV = ite->hdr.Chnl_Vol[dh];
-		
+
 		chn->VCh = 0; chn->TCD = 0; chn->Too = 0; chn->RTC = 0;
 		chn->Porta_Frequency = 0;
 		chn->VWF = 0; chn->VPo = 0; chn->VDp = 0; chn->VSp = 0;
@@ -4373,7 +4373,7 @@ void Music_RegetLoopInformation(it_engine *ite)
 {
 	uint16_t cx;
 	it_slave *slave;
-	
+
 	for(cx = ite->NumChannels, slave = &ite->slave[0]; cx != 0; cx--, slave++)
 	{
 		if((slave->Flags & 1) == 0) continue;
@@ -4478,7 +4478,7 @@ uint16_t Music_GetLastChannel(it_engine *ite)
 	for(; cx != 0; cx--, dx++)
 		if(((ite->hdr.Chnl_Vol[dx]>>7)^(ite->MuteChannelTable[dx])) == 0)
 			ax = dx;
-	
+
 	return ax;
 }
 
@@ -4684,7 +4684,7 @@ void Music_ToggleOrderUpdate(it_engine *ite)
 	ite->OrderLockFlag ^= 1;
 	if(ite->OrderLockFlag != 0)
 		msg = OrderUpdateDisabledMsg;
-	
+
 	SetInfoLine(ite, msg);
 }
 
