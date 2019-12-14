@@ -34,7 +34,7 @@ void M_FunctionHandler(it_engine *ite, void *ObjectList)
 	//Push    BP
 	//Mov     BP, SP
 
-#if 0
+/*
 	MouseSaveEvents();
 
 M_FunctionHandler1:
@@ -388,7 +388,7 @@ M_FunctionHandler14:
 M_FunctionHandler15:
 	Add     Word Ptr CS:GlobalKeyList, 7
 	Jmp     M_FunctionHandler10
-#endif
+*/
 }
 
 void M_Object1List(it_engine *ite, void *di, int cx)

@@ -30,6 +30,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include <unistd.h>
 #include <fcntl.h>
+#include <sys/ioctl.h>
 #include <sys/soundcard.h>
 
 static it_drvdata drv;
