@@ -1418,7 +1418,7 @@ AllocateChannel6:
 
 		// Same note/sample/inst?
 		// ("else else" is 0x36 --GM)
-		if(dh != (bp == 0x32 ? slave->Nte : bp == 0x33 ? slave->Ins : slave->Smp))
+		if(dl != (bp == 0x32 ? slave->Nte : bp == 0x33 ? slave->Ins : slave->Smp))
 			continue;
 
 		// New note is a MIDI?
